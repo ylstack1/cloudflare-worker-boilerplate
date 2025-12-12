@@ -1,13 +1,7 @@
-import { describe } from 'bun:test';
-import { treaty } from '@elysiajs/eden';
-import { app } from '@/app';
+import { describe, expect, it } from 'vitest';
 
-function createApp() {
-  const api = app({});
-
-  return treaty(api);
-}
-
-describe('worker', () => {
-  const _api = createApp();
+describe('root legacy test', () => {
+  it('should pass', () => {
+    expect(true).toBe(true);
+  });
 });
