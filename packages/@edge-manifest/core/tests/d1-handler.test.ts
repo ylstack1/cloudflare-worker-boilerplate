@@ -9,7 +9,7 @@
  * - Maintains type safety throughout
  */
 
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,12 +33,14 @@ const posts = sqliteTable('posts', {
 
 const schema = { users, posts };
 
+type SqlStatement = ReturnType<Database['prepare']>;
+
 /**
  * Mock D1PreparedStatement implementation
  */
 class MockD1PreparedStatement {
   constructor(
-    private stmt: Database.Statement,
+    private stmt: SqlStatement,
     private values: unknown[] = [],
   ) {}
 
@@ -98,8 +100,13 @@ class MockD1PreparedStatement {
 
   async raw<T = unknown[]>(): Promise<T[]> {
     try {
-      const results = this.values.length > 0 ? this.stmt.raw().all(...this.values) : this.stmt.raw().all();
-      return results as T[];
+      const results = this.values.length > 0 ? this.stmt.all(...this.values) : this.stmt.all();
+
+      if (Array.isArray(results) && results.length > 0 && Array.isArray(results[0])) {
+        return results as T[];
+      }
+
+      return results.map((row) => Object.values(row as Record<string, unknown>)) as T[];
     } catch {
       return [];
     }
@@ -111,7 +118,7 @@ class MockD1PreparedStatement {
  * This simulates Cloudflare's D1 API for testing purposes
  */
 class MockD1Database {
-  private db: Database.Database;
+  private db: Database;
 
   constructor() {
     this.db = new Database(':memory:');
