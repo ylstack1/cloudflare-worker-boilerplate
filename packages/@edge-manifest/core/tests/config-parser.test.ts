@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigParser, FileLoader } from '../src/config/config-parser';
+import { ConfigParser, type FileLoader } from '../src/config/config-parser';
 import type { EdgeManifest } from '../src/manifest/types';
 
 // Mock file loader for testing
 class MockFileLoader implements FileLoader {
-  constructor(private shouldSucceed = true, private content = '') {}
+  constructor(
+    private shouldSucceed = true,
+    private content = '',
+  ) {}
 
   async readFile(path: string): Promise<string> {
     if (!this.shouldSucceed) {
@@ -74,9 +77,7 @@ describe('ConfigParser', () => {
       const loader = new MockFileLoader(false);
       const parser = new ConfigParser(loader);
 
-      await expect(parser.loadFromFile('./non-existent.json')).rejects.toThrow(
-        'ENOENT: no such file or directory'
-      );
+      await expect(parser.loadFromFile('./non-existent.json')).rejects.toThrow('ENOENT: no such file or directory');
     });
 
     it('should handle malformed JSON', async () => {
@@ -85,7 +86,7 @@ describe('ConfigParser', () => {
       const parser = new ConfigParser(loader);
 
       await expect(parser.loadFromFile('./malformed.json')).rejects.toThrow(
-        'Failed to parse manifest JSON from ./malformed.json:'
+        'Failed to parse manifest JSON from ./malformed.json:',
       );
     });
 
@@ -95,7 +96,7 @@ describe('ConfigParser', () => {
       const parser = new ConfigParser(loader);
 
       await expect(parser.loadFromFile('./invalid.json')).rejects.toThrow(
-        'Failed to load manifest from ./invalid.json:'
+        'Failed to load manifest from ./invalid.json:',
       );
     });
 
@@ -114,9 +115,9 @@ describe('ConfigParser', () => {
         },
       });
 
-      expect((result.generators as Record<string, unknown>)?.['defaultRegion']).toBe('us-west-2');
-      expect((result.generators as Record<string, unknown>)?.['generateTypes']).toBe(true);
-      expect((result.generators as Record<string, unknown>)?.['generateSchema']).toBe(false);
+      expect((result.generators as Record<string, unknown>)?.defaultRegion).toBe('us-west-2');
+      expect((result.generators as Record<string, unknown>)?.generateTypes).toBe(true);
+      expect((result.generators as Record<string, unknown>)?.generateSchema).toBe(false);
       expect(result._meta?.runtimeOverrides?.defaultRegion).toBe('us-west-2');
     });
   });
@@ -137,9 +138,7 @@ describe('ConfigParser', () => {
     it('should handle invalid manifest object', () => {
       const parser = new ConfigParser();
 
-      expect(() => parser.loadFromObject(invalidManifest)).toThrow(
-        'Failed to load manifest:'
-      );
+      expect(() => parser.loadFromObject(invalidManifest)).toThrow('Failed to load manifest:');
     });
 
     it('should apply runtime overrides when loading from object', () => {
@@ -151,8 +150,8 @@ describe('ConfigParser', () => {
         },
       });
 
-      expect((result.generators as Record<string, unknown>)?.['defaultRegion']).toBe('eu-central-1');
-      expect((result.generators as Record<string, unknown>)?.['customFlag']).toBe(true);
+      expect((result.generators as Record<string, unknown>)?.defaultRegion).toBe('eu-central-1');
+      expect((result.generators as Record<string, unknown>)?.customFlag).toBe(true);
       expect(result._meta?.runtimeOverrides?.defaultRegion).toBe('eu-central-1');
     });
 
@@ -245,8 +244,8 @@ describe('ConfigParser', () => {
         },
       });
 
-      expect((result.generators as Record<string, unknown>)?.['defaultRegion']).toBe('us-east-1');
-      expect((result.generators as Record<string, unknown>)?.['existingFlag']).toBe(true); // Preserve existing
+      expect((result.generators as Record<string, unknown>)?.defaultRegion).toBe('us-east-1');
+      expect((result.generators as Record<string, unknown>)?.existingFlag).toBe(true); // Preserve existing
     });
 
     it('should merge generatorFlags into generators', () => {
@@ -260,8 +259,8 @@ describe('ConfigParser', () => {
         },
       });
 
-      expect((result.generators as Record<string, unknown>)?.['generateAPI']).toBe(true);
-      expect((result.generators as Record<string, unknown>)?.['generateAdmin']).toBe(false);
+      expect((result.generators as Record<string, unknown>)?.generateAPI).toBe(true);
+      expect((result.generators as Record<string, unknown>)?.generateAdmin).toBe(false);
     });
 
     it('should handle custom runtime overrides', () => {
@@ -274,15 +273,15 @@ describe('ConfigParser', () => {
         },
       });
 
-      expect((result.generators as Record<string, unknown>)?.['customConfig']).toEqual({ setting: 'value' });
-      expect((result.generators as Record<string, unknown>)?.['numberSetting']).toBe(42);
-      expect((result.generators as Record<string, unknown>)?.['booleanSetting']).toBe(true);
+      expect((result.generators as Record<string, unknown>)?.customConfig).toEqual({ setting: 'value' });
+      expect((result.generators as Record<string, unknown>)?.numberSetting).toBe(42);
+      expect((result.generators as Record<string, unknown>)?.booleanSetting).toBe(true);
     });
 
     it('should not mutate the original manifest', () => {
       const parser = new ConfigParser();
       const originalManifest = JSON.parse(JSON.stringify(validManifest));
-      
+
       parser.loadFromObject(originalManifest, {
         runtimeOverrides: { defaultRegion: 'test' },
       });
@@ -298,16 +297,14 @@ describe('ConfigParser', () => {
       const parser = new ConfigParser(loader);
 
       await expect(parser.loadFromFile('/path/to/manifest.json')).rejects.toThrow(
-        'Failed to load manifest from /path/to/manifest.json:'
+        'Failed to load manifest from /path/to/manifest.json:',
       );
     });
 
     it('should preserve original validation error messages', () => {
       const parser = new ConfigParser();
 
-      expect(() => parser.loadFromObject({ invalid: 'manifest' })).toThrow(
-        'Manifest validation failed:'
-      );
+      expect(() => parser.loadFromObject({ invalid: 'manifest' })).toThrow('Manifest validation failed:');
     });
   });
 });
