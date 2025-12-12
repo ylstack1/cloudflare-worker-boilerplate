@@ -12,3 +12,6 @@ export function createCore(config: CoreConfig) {
     config,
   };
 }
+
+export * from './manifest/types';
+export * from './manifest/validator';
