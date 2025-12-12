@@ -1,1 +1,1 @@
-export { Bindings } from '@/types/bindings';
+export type { Bindings } from './bindings';

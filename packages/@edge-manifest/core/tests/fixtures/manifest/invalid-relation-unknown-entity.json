@@ -1,0 +1,18 @@
+{
+  "id": "test-app",
+  "name": "Test App",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "name": "Post",
+      "fields": [
+        { "name": "id", "kind": "id" },
+        {
+          "name": "author",
+          "kind": "relation",
+          "relation": { "entity": "User", "type": "one" }
+        }
+      ]
+    }
+  ]
+}

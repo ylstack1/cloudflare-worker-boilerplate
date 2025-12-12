@@ -1,0 +1,15 @@
+{
+  "id": "test-app",
+  "name": "Test App",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "name": "User",
+      "fields": [{ "name": "id", "kind": "id" }]
+    },
+    {
+      "name": "User",
+      "fields": [{ "name": "id", "kind": "id" }]
+    }
+  ]
+}

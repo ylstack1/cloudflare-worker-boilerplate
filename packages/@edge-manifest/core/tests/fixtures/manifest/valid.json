@@ -1,0 +1,15 @@
+{
+  "id": "test-app",
+  "name": "Test App",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "name": "User",
+      "fields": [
+        { "name": "id", "kind": "id", "required": true },
+        { "name": "email", "kind": "string", "required": true, "unique": true },
+        { "name": "createdAt", "kind": "date" }
+      ]
+    }
+  ]
+}

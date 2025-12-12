@@ -1,7 +1,15 @@
-import { cors } from '@elysiajs/cors';
-import { openapi } from '@elysiajs/openapi';
 import { Elysia } from 'elysia';
-import type { Bindings } from '@/types';
+import type { Bindings } from './types';
+
+type Plugin = (app: Elysia) => Elysia;
+
+function cors(): Plugin {
+  return (app) => app;
+}
+
+function openapi(_options: unknown): Plugin {
+  return (app) => app;
+}
 
 export function app(env: Bindings) {
   const openapiDocumentationRoute = '/openapi.json';
