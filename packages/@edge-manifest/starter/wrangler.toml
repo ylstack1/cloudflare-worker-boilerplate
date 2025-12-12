@@ -1,0 +1,14 @@
+name = "edge-manifest-worker"
+main = "src/index.ts"
+upload_source_maps = true
+minify = true
+send_metrics = false
+
+[placement]
+mode = "smart"
+
+[ai]
+binding = "ai"
+
+[dev]
+port = 7860

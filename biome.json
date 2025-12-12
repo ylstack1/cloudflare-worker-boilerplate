@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -42,5 +42,13 @@
       "quoteStyle": "single",
       "jsxQuoteStyle": "single"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/**/*.ts"],
+      "linter": {
+        "enabled": true
+      }
+    }
+  ]
 }

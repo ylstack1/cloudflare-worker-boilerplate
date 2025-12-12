@@ -5,14 +5,43 @@ on:
     paths:
       - .github/workflows/main.yml
       - biome.json
+      - tsconfig.base.json
       - tsconfig.json
+      - vitest.config.ts
+      - pnpm-workspace.yaml
       - package.json
-      - bun.lock
-      - src/**/*.ts
-      - tests/**/*.ts
+      - pnpm-lock.yaml
+      - packages/**/*.ts
+      - packages/**/*.json
 
 jobs:
   test:
-    uses: winstxnhdw/actions/.github/workflows/bun.yml@main
-    with:
-      disable-build: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.0.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Lint
+        run: pnpm lint
+      
+      - name: Typecheck
+        run: pnpm typecheck
+      
+      - name: Build
+        run: pnpm build
+      
+      - name: Test
+        run: pnpm test --run --coverage
