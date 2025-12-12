@@ -6,13 +6,39 @@ on:
       - .github/workflows/formatter.yml
       - biome.json
       - package.json
-      - bun.lock
-      - src/**/*.ts
-      - tests/**/*.ts
+      - pnpm-lock.yaml
+      - packages/**/*.ts
+      - packages/**/*.json
 
 permissions:
   contents: write
 
 jobs:
   format:
-    uses: winstxnhdw/actions/.github/workflows/format-biome.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.0.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Format with Biome
+        run: pnpm lint:fix
+      
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: format code with biome'
+          commit_user_name: 'github-actions[bot]'
+          commit_user_email: 'github-actions[bot]@users.noreply.github.com'

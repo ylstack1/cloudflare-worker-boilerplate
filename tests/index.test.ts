@@ -9,5 +9,5 @@ function createApp() {
 }
 
 describe('worker', () => {
-  const api = createApp();
+  const _api = createApp();
 });

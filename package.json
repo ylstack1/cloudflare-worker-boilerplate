@@ -1,26 +1,35 @@
 {
+  "name": "edge-manifest",
+  "version": "0.0.0",
+  "description": "EDGE-MANIFEST: A pnpm-based monorepo for Cloudflare Workers",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "build": "pnpm -r build",
     "lint": "biome check .",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "test": "bun test --watch"
-  },
-  "dependencies": {
-    "@elysiajs/bearer": "^1.4.1",
-    "@elysiajs/cors": "^1.4.0",
-    "@elysiajs/openapi": "^1.4.11",
-    "elysia": "^1.4.18",
-    "memoirist": "^0.4.0",
-    "tslib": "^2.8.1"
+    "lint:fix": "biome check --apply .",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc --noEmit",
+    "dev": "pnpm -r run dev --parallel",
+    "release": "pnpm -r publish --access public"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.8",
     "@cloudflare/workers-types": "4.20251209.0",
     "@elysiajs/eden": "1.4.5",
-    "@types/bun": "latest",
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^1.1.0",
+    "typescript": "latest",
+    "vite": "^5.0.0",
+    "vitest": "^1.1.0",
     "wrangler": "4.53.0"
   },
-  "peerDependencies": {
-    "typescript": "latest"
+  "pnpm": {
+    "overrides": {
+      "typescript": "latest"
+    }
   }
 }
