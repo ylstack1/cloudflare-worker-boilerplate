@@ -1,7 +1,5 @@
 name = "worker"
 main = "src/index.ts"
-compatibility_flags = ["nodejs_compat", "nodejs_als"]
-compatibility_date = "2025-06-04"
 upload_source_maps = true
 minify = true
 send_metrics = false
