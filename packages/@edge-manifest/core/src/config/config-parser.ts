@@ -38,17 +38,14 @@ export class ConfigParser {
   async loadFromFile(path: string, options?: ConfigParserOptions): Promise<ConfigParserResult> {
     try {
       const fileContent = await this.loader.readFile(path);
-      
+
       // Parse JSON with structured error handling
       let manifest: unknown;
       try {
         manifest = JSON.parse(fileContent);
       } catch (parseError) {
         const error = parseError as Error;
-        throw new Error(
-          `Failed to parse manifest JSON from ${path}:\n` +
-          `- Invalid JSON syntax: ${error.message}`
-        );
+        throw new Error(`Failed to parse manifest JSON from ${path}:\n` + `- Invalid JSON syntax: ${error.message}`);
       }
 
       return this.loadFromObject(manifest, { ...options, sourcePath: path });
@@ -58,12 +55,9 @@ export class ConfigParser {
       if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file')) {
         throw error; // Preserve original file system error
       }
-      
+
       // For other errors, enhance with source path
-      throw new Error(
-        `Failed to load manifest from ${path}:\n` +
-        `- ${errorMessage}`
-      );
+      throw new Error(`Failed to load manifest from ${path}:\n` + `- ${errorMessage}`);
     }
   }
 
@@ -71,10 +65,10 @@ export class ConfigParser {
     try {
       // Validate the manifest using existing validator
       const validatedManifest = validateManifest(manifestLike);
-      
+
       // Apply runtime overrides if provided
       const mergedConfig = this.mergeWithOverrides(validatedManifest, options?.runtimeOverrides);
-      
+
       // Create result with metadata
       const result: ConfigParserResult = {
         ...mergedConfig,
@@ -90,11 +84,8 @@ export class ConfigParser {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const sourcePath = options?.sourcePath ? ` from ${options.sourcePath}` : '';
-      
-      throw new Error(
-        `Failed to load manifest${sourcePath}:\n` +
-        `- ${errorMessage}`
-      );
+
+      throw new Error(`Failed to load manifest${sourcePath}:\n` + `- ${errorMessage}`);
     }
   }
 
@@ -102,10 +93,7 @@ export class ConfigParser {
     return this._config;
   }
 
-  private mergeWithOverrides(
-    manifest: EdgeManifest, 
-    runtimeOverrides?: RuntimeOverrides
-  ): EdgeManifest {
+  private mergeWithOverrides(manifest: EdgeManifest, runtimeOverrides?: RuntimeOverrides): EdgeManifest {
     if (!runtimeOverrides) {
       return manifest;
     }
@@ -119,7 +107,7 @@ export class ConfigParser {
       if (!merged.generators) {
         merged.generators = {};
       }
-      (merged.generators as Record<string, unknown>)['defaultRegion'] = runtimeOverrides.defaultRegion;
+      (merged.generators as Record<string, unknown>).defaultRegion = runtimeOverrides.defaultRegion;
     }
 
     if (runtimeOverrides.generatorFlags) {
@@ -155,26 +143,25 @@ function createDefaultFileLoader(): FileLoader {
         // Workers environment - this would need a custom implementation
         // For now, throw a helpful error
         throw new Error(
-          `File loading not available in this environment. ` +
-          `Please provide a custom FileLoader for Workers environment.`
+          'File loading not available in this environment. ' +
+            'Please provide a custom FileLoader for Workers environment.',
         );
       }
-      
+
       if (typeof Bun !== 'undefined') {
         // Bun environment
-        const { readFile } = await import('fs/promises');
+        const { readFile } = await import('node:fs/promises');
         return readFile(path, 'utf-8');
       }
-      
+
       if (typeof process !== 'undefined' && process.versions?.node) {
         // Node.js environment
-        const { readFile } = await import('fs/promises');
+        const { readFile } = await import('node:fs/promises');
         return readFile(path, 'utf-8');
       }
 
       throw new Error(
-        'Unsupported environment for file loading. ' +
-        'Please provide a custom FileLoader implementation.'
+        'Unsupported environment for file loading. ' + 'Please provide a custom FileLoader implementation.',
       );
     },
   };
