@@ -15,3 +15,4 @@ export function createCore(config: CoreConfig) {
 
 export * from './manifest/types';
 export * from './manifest/validator';
+export * from './config/config-parser';
