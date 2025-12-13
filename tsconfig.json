@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/@edge-manifest/core" },
+    { "path": "./packages/@edge-manifest/generators" },
     { "path": "./packages/@edge-manifest/cli" },
     { "path": "./packages/@edge-manifest/sdk" },
     { "path": "./packages/@edge-manifest/admin-ui" },

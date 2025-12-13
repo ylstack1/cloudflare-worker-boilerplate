@@ -77,7 +77,8 @@ describe('JWT Authentication', () => {
       const oldToken = await issueJWT(payload, testSecret);
 
       const newToken = await refreshJWT(oldToken, testSecret);
-      const verified = await verifyJWT(newToken!, testSecret);
+      expect(newToken).toBeDefined();
+      const verified = await verifyJWT(newToken as string, testSecret);
 
       expect(verified?.userId).toBe('test@example.com');
       expect(verified?.role).toBe('admin');
