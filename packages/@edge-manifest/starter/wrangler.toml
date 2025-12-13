@@ -1,5 +1,6 @@
 name = "edge-manifest-worker"
 main = "src/index.ts"
+compatibility_date = "2025-12-13"
 upload_source_maps = true
 minify = true
 send_metrics = false

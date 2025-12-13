@@ -47,7 +47,7 @@ function generateBodyFieldSchemas(fields: ManifestField[]): FieldSchemas {
     }
 
     const fieldName = field.name;
-    let schema = getFieldSchema(field.kind);
+    const schema = getFieldSchema(field.kind);
 
     if (!field.required && field.kind !== 'id') {
       optional[fieldName] = v.optional(schema);
@@ -95,7 +95,7 @@ function getFieldSchema(kind: string): v.GenericSchema {
 /**
  * Parses and validates a request body
  */
-export async function validateBody<T extends v.GenericSchema>(schema: T, body: unknown): Promise<v.Output<T>> {
+export async function validateBody<T extends v.GenericSchema>(schema: T, body: unknown): Promise<v.InferOutput<T>> {
   return v.parseAsync(schema, body);
 }
 
@@ -105,6 +105,6 @@ export async function validateBody<T extends v.GenericSchema>(schema: T, body: u
 export async function validateQuery<T extends v.GenericSchema>(
   schema: T,
   params: Record<string, unknown>,
-): Promise<v.Output<T>> {
+): Promise<v.InferOutput<T>> {
   return v.parseAsync(schema, params);
 }

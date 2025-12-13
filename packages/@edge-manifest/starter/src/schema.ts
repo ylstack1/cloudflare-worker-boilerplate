@@ -1,6 +1,5 @@
 import type { ManifestEntity } from '@edge-manifest/core';
-import { integer, text, real, blob, primaryKey, sqliteTable, unique } from 'drizzle-orm/sqlite-core';
-import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { blob, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export interface DrizzleTable {
   name: string;
@@ -66,15 +65,14 @@ export function generateSchemaFromManifest(entities: ManifestEntity[]): Record<s
           break;
 
         default:
-          const _exhaustive: never = field.kind;
-          throw new Error(`Unsupported field kind: ${_exhaustive}`);
+          throw new Error(`Unsupported field kind: ${(field as any).kind}`);
       }
 
       columns[field.name] = column;
     }
 
     // Create the table
-    schema[entity.name] = sqliteTable(tableName, columns as Parameters<typeof sqliteTable>[1]);
+    schema[entity.name] = sqliteTable(tableName, columns as any);
   }
 
   return schema;
