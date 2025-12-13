@@ -1,19 +1,11 @@
 /* biome-ignore lint/suspicious/noExplicitAny: Test file */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import type { Bindings } from '../src/types';
 
 declare global {
   // eslint-disable-next-line no-var
-  var __edgeManifestMockDb:
-    | Record<string, Array<Record<string, unknown>>>
-    | undefined;
+  var __edgeManifestMockDb: Record<string, Array<Record<string, unknown>>> | undefined;
 }
 
 function request(path: string, method = 'GET', body?: unknown): Request {
@@ -38,30 +30,25 @@ function setupMockDb(): void {
   };
 }
 
-function clearMockDb(): void {
+function _clearMockDb(): void {
   globalThis.__edgeManifestMockDb = undefined;
 }
 
 class MockD1Database {
-  prepare(query: string): { first(): Promise<{ ok: number }>; all(): Promise<[]> } {
+  prepare(_query: string): { first(): Promise<{ ok: number }>; all(): Promise<[]> } {
     return {
       first: async () => ({ ok: 1 }),
       all: async () => [],
     };
   }
 
-  insertTestRow(
-    tableName: string,
-    data: Record<string, unknown>,
-  ): Record<string, unknown> {
+  insertTestRow(tableName: string, data: Record<string, unknown>): Record<string, unknown> {
     if (!globalThis.__edgeManifestMockDb) {
       setupMockDb();
     }
     const mutableData = data;
     if (!mutableData.id) {
-      mutableData.id = `${tableName}_${Date.now()}_${Math.random()
-        .toString(36)
-        .substring(7)}`;
+      mutableData.id = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     }
     globalThis.__edgeManifestMockDb[tableName].push({ ...mutableData });
     return mutableData;

@@ -1,11 +1,5 @@
 {
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": "./",
-    "outDir": "./dist",
-    "types": ["@cloudflare/workers-types"]
-  },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "files": [],
   "references": [
     { "path": "./packages/@edge-manifest/core" },
     { "path": "./packages/@edge-manifest/cli" },

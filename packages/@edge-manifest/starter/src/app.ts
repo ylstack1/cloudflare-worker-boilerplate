@@ -8,6 +8,8 @@ import {
 import { cors } from '@elysiajs/cors';
 import { Elysia } from 'elysia';
 import { CloudflareAdapter } from 'elysia/adapter/cloudflare-worker';
+import * as v from 'valibot';
+import { issueJWT, refreshJWT, verifyJWT } from './auth';
 import { registerCrudRoutes } from './routes';
 import type { Bindings } from './types';
 
@@ -66,10 +68,14 @@ export async function createApp(env: Bindings): Promise<ReturnType<typeof create
 
   // Register CRUD routes for entities in manifest
   if (!manifestError) {
-    await registerCrudRoutes(app, manifest);
+    await registerCrudRoutes(app as any, manifest);
   }
 
   return app.compile();
+}
+
+function getJWTSecret(env: Bindings): string {
+  return env.JWT_SECRET ?? 'default-dev-secret-change-in-production';
 }
 
 function createAppInternal(env: Bindings, manifest: ConfigParserResult, manifestError?: Error) {
@@ -83,12 +89,13 @@ function createAppInternal(env: Bindings, manifest: ConfigParserResult, manifest
     .decorate('requestStartMs', 0)
     .decorate('db', undefined as Db | undefined)
     .decorate('dbError', undefined as Error | undefined)
+    .decorate('user', null as Record<string, unknown> | null)
     .use(
       cors({
         origin: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['content-type', 'authorization', 'x-request-id'],
-        exposedHeaders: ['x-request-id'],
+        exposeHeaders: ['x-request-id'],
       }),
     )
     .onRequest(async (ctx) => {
@@ -115,22 +122,37 @@ function createAppInternal(env: Bindings, manifest: ConfigParserResult, manifest
         }),
       );
     })
-    .onAfterHandle((ctx, response) => {
-      const durationMs = Date.now() - ctx.requestStartMs;
+    .onAfterHandle(
+      (() => {
+        return (ctx: any) => {
+          const durationMs = Date.now() - ctx.requestStartMs;
 
-      console.info(
-        JSON.stringify({
-          level: 'info',
-          msg: 'request.end',
-          requestId: ctx.requestId,
-          method: ctx.request.method,
-          url: ctx.request.url,
-          status: response instanceof Response ? response.status : ctx.set.status,
-          durationMs,
-        }),
-      );
+          console.info(
+            JSON.stringify({
+              level: 'info',
+              msg: 'request.end',
+              requestId: ctx.requestId,
+              method: ctx.request.method,
+              url: ctx.request.url,
+              status: ctx.set.status,
+              durationMs,
+            }),
+          );
+        };
+      })() as any,
+    )
+    .derive(async (ctx: any) => {
+      // Extract JWT from Authorization header
+      const authHeader = ctx.request.headers.get('authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return { user: null };
+      }
 
-      return response;
+      const token = authHeader.substring(7);
+      const secret = getJWTSecret(ctx.env);
+      const payload = await verifyJWT(token, secret);
+
+      return { user: payload };
     })
     .onError((ctx) => {
       if (!ctx.requestId) {
@@ -223,7 +245,96 @@ function createAppInternal(env: Bindings, manifest: ConfigParserResult, manifest
           reason: toErrorMessage(error),
         };
       }
-    });
+    })
+    .post(
+      '/auth/login',
+      async ({ body, env, requestId, set }) => {
+        const loginSchema = v.object({
+          email: v.pipe(v.string(), v.email()),
+          password: v.string(),
+        });
+
+        try {
+          const { email } = await v.parseAsync(loginSchema, body);
+
+          // Placeholder auth: accept any email/password
+          const secret = getJWTSecret(env);
+          const token = await issueJWT({ userId: email, iat: Date.now() }, secret);
+
+          return {
+            ok: true,
+            requestId,
+            token,
+            expiresIn: 3600, // 1 hour in seconds
+          };
+        } catch (error) {
+          set.status = 400;
+          return {
+            ok: false,
+            requestId,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: toErrorMessage(error),
+            },
+          };
+        }
+      },
+      {
+        body: v.object({
+          email: v.string(),
+          password: v.string(),
+        }),
+      },
+    )
+    .post(
+      '/auth/refresh',
+      async ({ body, env, requestId, set }) => {
+        const refreshSchema = v.object({
+          token: v.string(),
+        });
+
+        try {
+          const { token } = await v.parseAsync(refreshSchema, body);
+
+          const secret = getJWTSecret(env);
+          const newToken = await refreshJWT(token, secret);
+
+          if (!newToken) {
+            set.status = 401;
+            return {
+              ok: false,
+              requestId,
+              error: {
+                code: 'INVALID_TOKEN',
+                message: 'Token is invalid or expired',
+              },
+            };
+          }
+
+          return {
+            ok: true,
+            requestId,
+            token: newToken,
+            expiresIn: 3600, // 1 hour in seconds
+          };
+        } catch (error) {
+          set.status = 400;
+          return {
+            ok: false,
+            requestId,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: toErrorMessage(error),
+            },
+          };
+        }
+      },
+      {
+        body: v.object({
+          token: v.string(),
+        }),
+      },
+    );
 
   return baseApp;
 }

@@ -1,53 +1,21 @@
-import type { EdgeManifest } from '../manifest/types';
 import { validateManifest } from '../manifest/validator';
-
-export interface RuntimeOverrides {
-  defaultRegion?: string;
-  generatorFlags?: Record<string, boolean>;
-  [key: string]: unknown;
-}
-
-export interface ConfigParserOptions {
-  runtimeOverrides?: RuntimeOverrides;
-}
-
-export interface LoadOptions extends ConfigParserOptions {
-  sourcePath?: string;
-}
-
-export interface ConfigParserResult extends EdgeManifest {
-  _meta: {
-    sourcePath?: string;
-    runtimeOverrides?: RuntimeOverrides;
-    loadedAt: Date;
-  };
-}
-
-export interface FileLoader {
-  readFile(path: string): Promise<string>;
-}
-
 export class ConfigParser {
-  private _config?: ConfigParserResult;
-  private readonly loader: FileLoader;
-
-  constructor(loader?: FileLoader) {
+  _config;
+  loader;
+  constructor(loader) {
     this.loader = loader || createDefaultFileLoader();
   }
-
-  async loadFromFile(path: string, options?: ConfigParserOptions): Promise<ConfigParserResult> {
+  async loadFromFile(path, options) {
     try {
       const fileContent = await this.loader.readFile(path);
-
       // Parse JSON with structured error handling
-      let manifest: unknown;
+      let manifest;
       try {
         manifest = JSON.parse(fileContent);
       } catch (parseError) {
-        const error = parseError as Error;
+        const error = parseError;
         throw new Error(`Failed to parse manifest JSON from ${path}:\n` + `- Invalid JSON syntax: ${error.message}`);
       }
-
       return this.loadFromObject(manifest, { ...options, sourcePath: path });
     } catch (error) {
       // Don't wrap file system errors - let them bubble up with original message
@@ -55,22 +23,18 @@ export class ConfigParser {
       if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file')) {
         throw error; // Preserve original file system error
       }
-
       // For other errors, enhance with source path
       throw new Error(`Failed to load manifest from ${path}:\n` + `- ${errorMessage}`);
     }
   }
-
-  loadFromObject(manifestLike: unknown, options?: LoadOptions): ConfigParserResult {
+  loadFromObject(manifestLike, options) {
     try {
       // Validate the manifest using existing validator
       const validatedManifest = validateManifest(manifestLike);
-
       // Apply runtime overrides if provided
       const mergedConfig = this.mergeWithOverrides(validatedManifest, options?.runtimeOverrides);
-
       // Create result with metadata
-      const result: ConfigParserResult = {
+      const result = {
         ...mergedConfig,
         _meta: {
           loadedAt: new Date(),
@@ -78,38 +42,31 @@ export class ConfigParser {
           ...(options?.runtimeOverrides && { runtimeOverrides: options.runtimeOverrides }),
         },
       };
-
       this._config = result;
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const sourcePath = options?.sourcePath ? ` from ${options.sourcePath}` : '';
-
       throw new Error(`Failed to load manifest${sourcePath}:\n` + `- ${errorMessage}`);
     }
   }
-
-  getConfig(): ConfigParserResult | undefined {
+  getConfig() {
     return this._config;
   }
-
-  private mergeWithOverrides(manifest: EdgeManifest, runtimeOverrides?: RuntimeOverrides): EdgeManifest {
+  mergeWithOverrides(manifest, runtimeOverrides) {
     if (!runtimeOverrides) {
       return manifest;
     }
-
     // Create a new object to avoid mutating the original manifest
     const merged = { ...manifest };
-
     // Apply runtime overrides
     if (runtimeOverrides.defaultRegion) {
       // Add default region to generators if not present
       if (!merged.generators) {
         merged.generators = {};
       }
-      (merged.generators as Record<string, unknown>).defaultRegion = runtimeOverrides.defaultRegion;
+      merged.generators.defaultRegion = runtimeOverrides.defaultRegion;
     }
-
     if (runtimeOverrides.generatorFlags) {
       if (!merged.generators) {
         merged.generators = {};
@@ -120,25 +77,22 @@ export class ConfigParser {
         ...runtimeOverrides.generatorFlags,
       };
     }
-
     // Allow other runtime overrides to be applied
     for (const [key, value] of Object.entries(runtimeOverrides)) {
       if (key !== 'defaultRegion' && key !== 'generatorFlags') {
         if (!merged.generators) {
           merged.generators = {};
         }
-        (merged.generators as Record<string, unknown>)[key] = value;
+        merged.generators[key] = value;
       }
     }
-
     return merged;
   }
 }
-
-function createDefaultFileLoader(): FileLoader {
+function createDefaultFileLoader() {
   // Dynamic import to avoid Node.js dependencies in bundle
   return {
-    async readFile(path: string): Promise<string> {
+    async readFile(path) {
       if (typeof globalThis !== 'undefined' && 'fetch' in globalThis) {
         // Workers environment - this would need a custom implementation
         // For now, throw a helpful error
@@ -147,22 +101,20 @@ function createDefaultFileLoader(): FileLoader {
             'Please provide a custom FileLoader for Workers environment.',
         );
       }
-
-      if (typeof (globalThis as any).Bun !== 'undefined') {
+      if (typeof globalThis.Bun !== 'undefined') {
         // Bun environment
         const { readFile } = await import('node:fs/promises');
         return readFile(path, 'utf-8');
       }
-
       if (typeof process !== 'undefined' && process.versions?.node) {
         // Node.js environment
         const { readFile } = await import('node:fs/promises');
         return readFile(path, 'utf-8');
       }
-
       throw new Error(
         'Unsupported environment for file loading. ' + 'Please provide a custom FileLoader implementation.',
       );
     },
   };
 }
+//# sourceMappingURL=config-parser.js.map

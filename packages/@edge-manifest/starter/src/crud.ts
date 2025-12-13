@@ -34,7 +34,7 @@ export interface ListOptions {
 export class CrudService {
   constructor(private tableName: string) {}
 
-  async list(db: any, options?: ListOptions): Promise<{ items: any[]; total: number }> {
+  async list(_db: any, options?: ListOptions): Promise<{ items: any[]; total: number }> {
     const limit = Math.min(options?.limit || 10, 100);
     const offset = options?.offset || 0;
 
@@ -49,12 +49,12 @@ export class CrudService {
 
       // Fallback: empty list
       return { items: [], total: 0 };
-    } catch (error) {
+    } catch (_error) {
       return { items: [], total: 0 };
     }
   }
 
-  async get(db: any, id: string): Promise<any | null> {
+  async get(_db: any, id: string): Promise<any | null> {
     try {
       // Try to use mock database first (for testing)
       if ((globalThis as any).__edgeManifestMockDb?.[this.tableName]) {
@@ -68,20 +68,21 @@ export class CrudService {
     }
   }
 
-  async create(db: any, data: Record<string, any>): Promise<any> {
+  async create(_db: any, data: Record<string, any>): Promise<any> {
     try {
       // Generate ID
       const id = crypto.randomUUID();
       const record = { id, ...data };
 
       // Store in mock database for testing
-      if (!globalThis.__edgeManifestMockDb) {
-        (globalThis as any).__edgeManifestMockDb = {};
+      const g = globalThis as any;
+      if (!g.__edgeManifestMockDb) {
+        g.__edgeManifestMockDb = {};
       }
-      if (!(globalThis as any).__edgeManifestMockDb[this.tableName]) {
-        (globalThis as any).__edgeManifestMockDb[this.tableName] = [];
+      if (!g.__edgeManifestMockDb[this.tableName]) {
+        g.__edgeManifestMockDb[this.tableName] = [];
       }
-      (globalThis as any).__edgeManifestMockDb[this.tableName].push(record);
+      g.__edgeManifestMockDb[this.tableName].push(record);
 
       return record;
     } catch (error) {
@@ -176,7 +177,7 @@ export function errorResponse(code: string, message: string, details?: unknown):
     error: {
       code,
       message,
-      ...(details && { details }),
+      ...(details ? { details } : {}),
     },
   };
 }

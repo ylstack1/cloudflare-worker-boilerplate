@@ -1,8 +1,19 @@
 import type { ConfigParserResult } from '@edge-manifest/core';
 import type { Elysia } from 'elysia';
+import * as v from 'valibot';
 import { CrudService, errorResponse, listResponse, successResponse } from './crud';
 import { generateValidatorsForEntity } from './validators';
-import * as v from 'valibot';
+
+/**
+ * Auth guard: checks if user is authenticated
+ */
+function requireAuth(user: Record<string, unknown> | null, set: any): boolean {
+  if (!user) {
+    set.status = 401;
+    return false;
+  }
+  return true;
+}
 
 /**
  * Registers CRUD routes for all entities in the manifest
@@ -14,7 +25,12 @@ export async function registerCrudRoutes(app: Elysia<any>, manifest: ConfigParse
     const entityPath = `/api/${entity.name.toLowerCase()}`;
 
     // List endpoint: GET /api/<entity>?limit=10&offset=0
-    app.get(entityPath, async ({ db, request, set }): Promise<any> => {
+    app.get(entityPath, async (ctx: any): Promise<any> => {
+      const { db, request, set, user } = ctx;
+      if (!requireAuth(user, set)) {
+        return errorResponse('UNAUTHORIZED', 'Authentication required');
+      }
+
       if (!db) {
         set.status = 503;
         return errorResponse('DB_UNAVAILABLE', 'Database connection unavailable');
@@ -23,8 +39,8 @@ export async function registerCrudRoutes(app: Elysia<any>, manifest: ConfigParse
       try {
         const url = new URL(request.url);
         const query = {
-          limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : 10,
-          offset: url.searchParams.get('offset') ? parseInt(url.searchParams.get('offset')!) : 0,
+          limit: url.searchParams.get('limit') ? Number.parseInt(url.searchParams.get('limit')!, 10) : 10,
+          offset: url.searchParams.get('offset') ? Number.parseInt(url.searchParams.get('offset')!, 10) : 0,
           sort: url.searchParams.get('sort'),
           filter: url.searchParams.get('filter'),
         };
@@ -45,7 +61,12 @@ export async function registerCrudRoutes(app: Elysia<any>, manifest: ConfigParse
     });
 
     // Get endpoint: GET /api/<entity>/:id
-    app.get(`${entityPath}/:id`, async ({ db, params, set }): Promise<any> => {
+    app.get(`${entityPath}/:id`, async (ctx: any): Promise<any> => {
+      const { db, params, set, user } = ctx;
+      if (!requireAuth(user, set)) {
+        return errorResponse('UNAUTHORIZED', 'Authentication required');
+      }
+
       if (!db) {
         set.status = 503;
         return errorResponse('DB_UNAVAILABLE', 'Database connection unavailable');
@@ -66,7 +87,12 @@ export async function registerCrudRoutes(app: Elysia<any>, manifest: ConfigParse
     });
 
     // Create endpoint: POST /api/<entity>
-    app.post(entityPath, async ({ db, request, set }): Promise<any> => {
+    app.post(entityPath, async (ctx: any): Promise<any> => {
+      const { db, request, set, user } = ctx;
+      if (!requireAuth(user, set)) {
+        return errorResponse('UNAUTHORIZED', 'Authentication required');
+      }
+
       if (!db) {
         set.status = 503;
         return errorResponse('DB_UNAVAILABLE', 'Database connection unavailable');
@@ -90,7 +116,11 @@ export async function registerCrudRoutes(app: Elysia<any>, manifest: ConfigParse
     });
 
     // Update endpoint: PUT/PATCH /api/<entity>/:id
-    const updateHandler = async ({ db, params, request, set }: any): Promise<any> => {
+    const updateHandler = async ({ db, params, request, set, user }: any): Promise<any> => {
+      if (!requireAuth(user, set)) {
+        return errorResponse('UNAUTHORIZED', 'Authentication required');
+      }
+
       if (!db) {
         set.status = 503;
         return errorResponse('DB_UNAVAILABLE', 'Database connection unavailable');
@@ -119,7 +149,12 @@ export async function registerCrudRoutes(app: Elysia<any>, manifest: ConfigParse
     app.patch(`${entityPath}/:id`, updateHandler);
 
     // Delete endpoint: DELETE /api/<entity>/:id
-    app.delete(`${entityPath}/:id`, async ({ db, params, set }): Promise<any> => {
+    app.delete(`${entityPath}/:id`, async (ctx: any): Promise<any> => {
+      const { db, params, set, user } = ctx;
+      if (!requireAuth(user, set)) {
+        return errorResponse('UNAUTHORIZED', 'Authentication required');
+      }
+
       if (!db) {
         set.status = 503;
         return errorResponse('DB_UNAVAILABLE', 'Database connection unavailable');
