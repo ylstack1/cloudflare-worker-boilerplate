@@ -1,4 +1,3 @@
-/* biome-ignore lint/suspicious/noExplicitAny: Test file */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import type { Bindings } from '../src/types';

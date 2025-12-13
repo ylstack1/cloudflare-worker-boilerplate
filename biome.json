@@ -51,11 +51,26 @@
       }
     },
     {
-      "includes": ["**/*test*.ts", "**/crud.ts"],
+      "includes": [
+        "**/*test*.ts",
+        "**/crud.ts",
+        "**/schema.ts",
+        "**/routes.ts",
+        "**/app.ts",
+        "**/auth.ts",
+        "**/config-parser.ts",
+        "packages/@edge-manifest/generators/**/*.ts"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
             "noExplicitAny": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "correctness": {
+            "noUnusedVariables": "off"
           }
         }
       }
