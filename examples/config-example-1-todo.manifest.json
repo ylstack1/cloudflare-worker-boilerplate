@@ -1,0 +1,80 @@
+{
+  "id": "todo-app",
+  "name": "Todo App",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "name": "TodoList",
+      "table": "todolist",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "title",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Todo",
+      "table": "todo",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "listId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "title",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "completed",
+          "kind": "boolean",
+          "required": true,
+          "default": false
+        },
+        {
+          "name": "dueDate",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

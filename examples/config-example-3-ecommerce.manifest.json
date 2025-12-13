@@ -1,0 +1,160 @@
+{
+  "id": "ecommerce-app",
+  "name": "E-Commerce Store",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "name": "Store",
+      "table": "store",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "name",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "slug",
+          "kind": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "table": "product",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "storeId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "name",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "name": "price",
+          "kind": "number",
+          "required": true
+        },
+        {
+          "name": "stock",
+          "kind": "number",
+          "required": true,
+          "default": 0
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Customer",
+      "table": "customer",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "email",
+          "kind": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "table": "order",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "storeId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "customerId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "status",
+          "kind": "string",
+          "required": true,
+          "default": "pending"
+        },
+        {
+          "name": "total",
+          "kind": "number",
+          "required": true
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
