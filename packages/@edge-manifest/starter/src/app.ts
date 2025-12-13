@@ -8,6 +8,7 @@ import {
 import { cors } from '@elysiajs/cors';
 import { Elysia } from 'elysia';
 import { CloudflareAdapter } from 'elysia/adapter/cloudflare-worker';
+import { registerCrudRoutes } from './routes';
 import type { Bindings } from './types';
 
 type EmptySchema = Record<string, never>;
@@ -59,12 +60,22 @@ function toErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export function createApp(env: Bindings) {
+export async function createApp(env: Bindings): Promise<ReturnType<typeof createAppInternal>> {
   const { manifest, error: manifestError } = loadManifestFromEnv(env);
+  const app = createAppInternal(env, manifest, manifestError);
 
+  // Register CRUD routes for entities in manifest
+  if (!manifestError) {
+    await registerCrudRoutes(app, manifest);
+  }
+
+  return app.compile();
+}
+
+function createAppInternal(env: Bindings, manifest: ConfigParserResult, manifestError?: Error) {
   const d1Handler = createD1RequestHandler({ schema: emptySchema });
 
-  return new Elysia({ adapter: CloudflareAdapter })
+  const baseApp = new Elysia({ adapter: CloudflareAdapter })
     .decorate('env', env)
     .decorate('manifest', manifest)
     .decorate('manifestError', manifestError)
@@ -212,6 +223,7 @@ export function createApp(env: Bindings) {
           reason: toErrorMessage(error),
         };
       }
-    })
-    .compile();
+    });
+
+  return baseApp;
 }
