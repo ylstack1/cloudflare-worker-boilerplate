@@ -10,6 +10,7 @@ build/
 .wrangler/
 .env
 .env.local
+.dev.vars
 *.local
 
 # Testing
