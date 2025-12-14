@@ -1,6 +1,8 @@
 import type { EdgeManifest } from '@edge-manifest/core';
+import { generateAdminAssets, generateAdminAssetsModule } from './admin-assets-generator';
 import { generateAdminUI } from './admin-generator';
 import { generateApiRoutes, generateTypeBoxSchemas } from './api-generator';
+import { generateConfig } from './config-generator';
 import { generateMigrations, generateRollback } from './migration-generator';
 import { generateDrizzleSchema, generateZodSchemas } from './schema-generator';
 import { generateApiTypes, generateTypes } from './type-generator';
@@ -12,12 +14,15 @@ export interface GeneratorOutput {
   apiTypes: string;
   routes: string;
   typeBoxSchemas: string;
+  config: string;
   migrations: string;
   rollback: string;
   admin: {
     routes: Record<string, string>;
     components: Record<string, string>;
   };
+  adminAssets: Record<string, string>;
+  adminAssetsModule: string;
 }
 
 export interface GeneratorOptions {
@@ -38,12 +43,15 @@ export async function generateAll(manifest: EdgeManifest, options: GeneratorOpti
     apiTypes: '',
     routes: '',
     typeBoxSchemas: '',
+    config: '',
     migrations: '',
     rollback: '',
     admin: {
       routes: {},
       components: {},
     },
+    adminAssets: {},
+    adminAssetsModule: '',
   };
 
   if (!skip.includes('schema')) {
@@ -61,6 +69,10 @@ export async function generateAll(manifest: EdgeManifest, options: GeneratorOpti
     output.typeBoxSchemas = await generateTypeBoxSchemas(manifest);
   }
 
+  if (!skip.includes('config')) {
+    output.config = await generateConfig(manifest);
+  }
+
   if (!skip.includes('migrations')) {
     output.migrations = await generateMigrations(manifest);
     output.rollback = await generateRollback(manifest);
@@ -68,6 +80,8 @@ export async function generateAll(manifest: EdgeManifest, options: GeneratorOpti
 
   if (!skip.includes('admin')) {
     output.admin = await generateAdminUI(manifest);
+    output.adminAssets = await generateAdminAssets(manifest);
+    output.adminAssetsModule = await generateAdminAssetsModule(manifest);
   }
 
   return output;
@@ -100,6 +114,10 @@ export async function generate(
         output.typeBoxSchemas = await generateTypeBoxSchemas(manifest);
         break;
 
+      case 'config':
+        output.config = await generateConfig(manifest);
+        break;
+
       case 'migrations':
         output.migrations = await generateMigrations(manifest);
         output.rollback = await generateRollback(manifest);
@@ -107,6 +125,8 @@ export async function generate(
 
       case 'admin':
         output.admin = await generateAdminUI(manifest);
+        output.adminAssets = await generateAdminAssets(manifest);
+        output.adminAssetsModule = await generateAdminAssetsModule(manifest);
         break;
 
       default:
@@ -125,7 +145,10 @@ export {
   generateApiTypes,
   generateApiRoutes,
   generateTypeBoxSchemas,
+  generateConfig,
   generateMigrations,
   generateRollback,
   generateAdminUI,
+  generateAdminAssets,
+  generateAdminAssetsModule,
 };

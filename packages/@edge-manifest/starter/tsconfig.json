@@ -1,7 +1,7 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./",
+    "rootDir": "../../..",
     "outDir": "./dist",
     "types": ["@cloudflare/workers-types"],
     "composite": true,
@@ -11,7 +11,7 @@
     "noPropertyAccessFromIndexSignature": false,
     "noImplicitAny": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/index.ts", "../../../.output/**/*.ts"],
   "exclude": ["node_modules", "dist", "tests"],
-  "references": [{ "path": "../core" }]
+  "references": []
 }

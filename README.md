@@ -1,6 +1,8 @@
 # EDGE-MANIFEST
 
-A batteries-included [ElysiaJS](https://elysiajs.com/) boilerplate for [Cloudflare Workers](https://workers.cloudflare.com/) with [Scalar](https://scalar.com/), organized as a pnpm-based monorepo.
+A production-ready, local-first, manifest-driven backend for Cloudflare Workers.
+
+This repo uses **pnpm (9.x) as the only supported package manager**.
 
 ## Monorepo Structure
 
@@ -23,6 +25,28 @@ Install all dependencies using pnpm:
 pnpm install
 ```
 
+### Generate from `manifest.ts`
+
+A default `manifest.ts` is included at the repo root. Generate the Worker artifacts into `.output/`:
+
+```bash
+pnpm generate
+```
+
+### Development Server
+
+Start the Cloudflare Worker development server (runs `pnpm generate`, applies local D1 migrations, and starts `wrangler dev`):
+
+```bash
+pnpm dev
+```
+
+Once the server is running, you can run the curl smoke test in another terminal:
+
+```bash
+./test-endpoints.sh
+```
+
 ### Building
 
 Build all packages:
@@ -35,20 +59,6 @@ Build a specific package:
 
 ```bash
 pnpm -C packages/@edge-manifest/starter build
-```
-
-### Development Server
-
-Start the Cloudflare Worker development server:
-
-```bash
-pnpm dev
-```
-
-Or run from a specific package:
-
-```bash
-pnpm -C packages/@edge-manifest/starter dev
 ```
 
 ### Testing

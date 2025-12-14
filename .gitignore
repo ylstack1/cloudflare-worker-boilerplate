@@ -1,9 +1,14 @@
 # Dependencies
 node_modules/
 
+# Lockfiles
+bun.lock
+bun.lockb
+
 # Build outputs
 dist/
 build/
+.output/
 .turbo/
 
 # Development

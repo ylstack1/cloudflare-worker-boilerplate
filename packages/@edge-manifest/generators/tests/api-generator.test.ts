@@ -4,22 +4,22 @@ import { sampleManifest, simpleManifest } from './fixtures';
 
 describe('API Generator', () => {
   describe('generateApiRoutes', () => {
-    it('should generate Elysia router', async () => {
+    it('should generate an Elysia plugin factory', async () => {
       const routes = await generateApiRoutes(simpleManifest);
 
       expect(routes).toContain('import { Elysia');
-      expect(routes).toContain('export const userRouter');
+      expect(routes).toContain('export function createRoutesPlugin');
       expect(routes).toContain('new Elysia');
     });
 
     it('should generate all CRUD routes', async () => {
       const routes = await generateApiRoutes(simpleManifest);
 
-      expect(routes).toContain(".get('/'"); // List
-      expect(routes).toContain(".post('/'"); // Create
-      expect(routes).toContain(".get('/:id'"); // Get
-      expect(routes).toContain(".patch('/:id'"); // Update
-      expect(routes).toContain(".delete('/:id'"); // Delete
+      expect(routes).toContain(".get('/',"); // List
+      expect(routes).toContain('.post('); // Create
+      expect(routes).toContain("'/:id'"); // Get
+      expect(routes).toContain('.patch('); // Update
+      expect(routes).toContain('.delete('); // Delete
     });
 
     it('should include database operations', async () => {
@@ -56,15 +56,15 @@ describe('API Generator', () => {
     it('should handle multiple entities', async () => {
       const routes = await generateApiRoutes(sampleManifest);
 
-      expect(routes).toContain('userRouter');
-      expect(routes).toContain('postRouter');
+      expect(routes).toContain(".group('/users'");
+      expect(routes).toContain(".group('/posts'");
     });
 
-    it('should generate main router', async () => {
+    it('should generate a plugin entrypoint', async () => {
       const routes = await generateApiRoutes(simpleManifest);
 
-      expect(routes).toContain('export function createApiRouter()');
-      expect(routes).toContain('.use(');
+      expect(routes).toContain('export function createRoutesPlugin');
+      expect(routes).toContain("group('/api'");
     });
 
     it('should use correct table names', async () => {

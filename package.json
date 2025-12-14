@@ -6,15 +6,19 @@
   "type": "module",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "build": "bun run -F @edge-manifest/core build && bun run --parallel -F @edge-manifest/generators -F @edge-manifest/cli -F @edge-manifest/starter -F @edge-manifest/admin-ui -F @edge-manifest/sdk build",
+    "generate": "pnpm --filter @edge-manifest/cli... run build && pnpm exec edge-manifest setup --force",
+    "build:packages": "pnpm -r --filter @edge-manifest/core run build && pnpm -r --filter @edge-manifest/generators --filter @edge-manifest/cli --filter @edge-manifest/admin-ui --filter @edge-manifest/sdk run build",
+    "build": "pnpm generate && pnpm run build:packages && pnpm --filter @edge-manifest/starter run build",
+    "dev": "pnpm generate && pnpm --filter @edge-manifest/starter run dev",
+    "migrate:prod": "pnpm generate && pnpm --filter @edge-manifest/starter run migrate:prod",
+    "deploy": "pnpm build && pnpm --filter @edge-manifest/starter run deploy",
     "lint": "biome check .",
     "lint:fix": "biome check --apply .",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
-    "typecheck": "tsc --build",
-    "dev": "bun -r run dev --parallel",
-    "release": "bun -r publish --access public"
+    "typecheck": "pnpm generate && tsc --build",
+    "release": "pnpm -r publish --access public"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.8",
