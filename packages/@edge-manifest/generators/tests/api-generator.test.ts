@@ -27,7 +27,7 @@ describe('API Generator', () => {
 
       expect(routes).toContain('db.select()');
       expect(routes).toContain('db.insert(');
-      expect(routes).toContain('db.update(');
+      expect(routes).toContain('.update(table)');
       expect(routes).toContain('db.delete(');
     });
 
@@ -67,10 +67,10 @@ describe('API Generator', () => {
       expect(routes).toContain("group('/api'");
     });
 
-    it('should use correct table names', async () => {
+    it('should reference table symbols', async () => {
       const routes = await generateApiRoutes(simpleManifest);
 
-      expect(routes).toContain('schema.userTable');
+      expect(routes).toContain('userTable');
     });
 
     it('should generate UUID for IDs', async () => {

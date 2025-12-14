@@ -1,6 +1,4 @@
-import type { EdgeManifest } from './packages/@edge-manifest/core/src/manifest/types';
-
-const manifest: EdgeManifest = {
+const manifest = {
   id: 'edge-manifest-app',
   name: 'EDGE-MANIFEST',
   version: '0.0.0',

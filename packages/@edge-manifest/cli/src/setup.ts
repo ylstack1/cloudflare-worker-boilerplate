@@ -146,11 +146,7 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
   );
   await writeFileGuarded(path.join(outDir, 'routes.ts'), generated.routes, Boolean(options.force));
   await writeFileGuarded(path.join(outDir, 'config.ts'), generated.config, Boolean(options.force));
-  await writeFileGuarded(
-    path.join(outDir, 'admin-assets.ts'),
-    generated.adminAssetsModule,
-    Boolean(options.force),
-  );
+  await writeFileGuarded(path.join(outDir, 'admin-assets.ts'), generated.adminAssetsModule, Boolean(options.force));
 
   for (const [relativePath, body] of Object.entries(generated.adminAssets)) {
     await writeFileGuarded(path.join(outDir, relativePath), body, Boolean(options.force));

@@ -16,6 +16,23 @@ type Bindings = {
   KV_SESSION_TTL?: string;
 };
 
+type SetContext = {
+  status?: number;
+  headers: Record<string, string>;
+};
+
+type RouteContext = {
+  request: Request;
+  set: SetContext;
+};
+
+type Db = ReturnType<typeof drizzle>;
+
+type AppContext = RouteContext & {
+  requestId: string;
+  db: Db;
+};
+
 function applySecurityHeaders(headers: Record<string, string>): void {
   headers['x-content-type-options'] = 'nosniff';
   headers['x-frame-options'] = 'DENY';
@@ -38,7 +55,7 @@ function resolveAdminAsset(pathname: string): { contentType: string; body: strin
 function createApp(env: Bindings) {
   return new Elysia({ adapter: CloudflareAdapter, aot: false })
     .decorate('env', env)
-    .decorate('db', undefined as unknown)
+    .decorate('db', undefined as unknown as Db)
     .decorate('requestId', '')
     .use(
       cors({
@@ -48,17 +65,17 @@ function createApp(env: Bindings) {
         exposeHeaders: ['x-request-id'],
       }),
     )
-    .onRequest((ctx: any) => {
+    .onRequest((ctx: AppContext) => {
       ctx.requestId = crypto.randomUUID();
       ctx.set.headers['x-request-id'] = ctx.requestId;
 
       ctx.db = drizzle(env.DB, { schema });
     })
-    .onAfterHandle((ctx: any) => {
+    .onAfterHandle((ctx: AppContext) => {
       applySecurityHeaders(ctx.set.headers);
     })
     .use(createRoutesPlugin(manifest, schema))
-    .get('/admin', ({ request, set }: any) => {
+    .get('/admin', ({ request, set }: RouteContext) => {
       const url = new URL(request.url);
       const asset = resolveAdminAsset(url.pathname);
 
@@ -70,7 +87,7 @@ function createApp(env: Bindings) {
       set.headers['content-type'] = asset.contentType;
       return asset.body;
     })
-    .get('/admin/*', ({ request, set }: any) => {
+    .get('/admin/*', ({ request, set }: RouteContext) => {
       const url = new URL(request.url);
       const asset = resolveAdminAsset(url.pathname);
 
