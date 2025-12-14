@@ -107,7 +107,8 @@ export class ConfigParser {
       if (!merged.generators) {
         merged.generators = {};
       }
-      (merged.generators as Record<string, unknown>).defaultRegion = runtimeOverrides.defaultRegion;
+      // biome-ignore lint/complexity/useLiteralKeys: TypeScript strict mode requires bracket notation for index signatures
+      (merged.generators as Record<string, unknown>)['defaultRegion'] = runtimeOverrides.defaultRegion;
     }
 
     if (runtimeOverrides.generatorFlags) {

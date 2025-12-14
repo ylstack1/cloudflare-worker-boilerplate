@@ -1,0 +1,133 @@
+{
+  "id": "blog-app",
+  "name": "Blog Platform",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "name": "Author",
+      "table": "author",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "email",
+          "kind": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "bio",
+          "kind": "string",
+          "required": false
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Post",
+      "table": "post",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "authorId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "title",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "content",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "published",
+          "kind": "boolean",
+          "required": true,
+          "default": false
+        },
+        {
+          "name": "publishedAt",
+          "kind": "date",
+          "required": false
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "Comment",
+      "table": "comment",
+      "fields": [
+        {
+          "name": "id",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "postId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "authorId",
+          "kind": "uuid",
+          "required": true
+        },
+        {
+          "name": "content",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "approved",
+          "kind": "boolean",
+          "required": true,
+          "default": false
+        },
+        {
+          "name": "createdAt",
+          "kind": "date",
+          "required": true
+        },
+        {
+          "name": "updatedAt",
+          "kind": "date",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
