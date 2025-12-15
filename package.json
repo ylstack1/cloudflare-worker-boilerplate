@@ -40,11 +40,6 @@
   "overrides": {
     "typescript": "latest"
   },
-  "pnpm": {
-    "overrides": {
-      "esbuild": "0.27.0"
-    }
-  },
   "workspaces": [
     "packages/@edge-manifest/*"
   ]

@@ -159,7 +159,7 @@ function generateEntityGroup(entity: ManifestEntity): string {
 function generateBodySchema(entity: ManifestEntity, partial: boolean): string {
   const fields = entity.fields
     .filter((field) => field.kind !== 'relation' && field.kind !== 'id' && field.kind !== 'uuid')
-    .map((field) => generateTypeBoxField({ ...field, required: partial ? false : field.required }))
+    .map((field) => generateTypeBoxField({ ...field, required: partial ? false : (field.required ?? false) }))
     .join(',\n      ');
 
   const base = `t.Object({\n      ${fields}\n    })`;

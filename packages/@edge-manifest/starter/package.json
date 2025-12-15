@@ -9,8 +9,7 @@
     "build": "wrangler build --config wrangler.toml",
     "deploy": "wrangler deploy --config wrangler.toml",
     "migrate:prod": "wrangler d1 migrations apply edge-manifest-db --remote --config wrangler.toml",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest --run"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.0",
@@ -22,11 +21,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "4.20251209.0",
-    "@elysiajs/eden": "1.4.5",
     "@types/node": "^20.10.0",
-    "@vitest/coverage-v8": "^1.1.0",
     "typescript": "latest",
-    "vitest": "^1.1.0",
     "wrangler": "4.53.0"
   }
 }

@@ -53,7 +53,7 @@ function resolveAdminAsset(pathname: string): { contentType: string; body: strin
 }
 
 function createApp(env: Bindings) {
-  return new Elysia({ adapter: CloudflareAdapter, aot: false })
+  return new Elysia({ adapter: CloudflareAdapter })
     .decorate('env', env)
     .decorate('db', undefined as unknown as Db)
     .decorate('requestId', '')
@@ -114,7 +114,8 @@ function createApp(env: Bindings) {
           paths: [/^\/admin/],
         },
       }),
-    );
+    )
+    .compile();
 }
 
 let cachedApp: ReturnType<typeof createApp> | undefined;

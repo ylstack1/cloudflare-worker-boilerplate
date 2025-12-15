@@ -1,5 +1,5 @@
 import { cac } from 'cac';
-import { setupWorkspace } from './setup';
+import { type SetupOptions, setupWorkspace } from './setup.js';
 
 export async function runCli(argv: string[]): Promise<void> {
   const cli = cac('edge-manifest');
@@ -10,12 +10,20 @@ export async function runCli(argv: string[]): Promise<void> {
     .option('--out-dir <path>', 'Output directory (default: .output)')
     .option('--force', 'Overwrite existing files')
     .action(async (options: { manifest?: string; outDir?: string; force?: boolean }) => {
-      await setupWorkspace({
+      const setupOptions: SetupOptions = {
         cwd: process.cwd(),
-        manifestPath: options.manifest,
-        outDir: options.outDir,
         force: Boolean(options.force),
-      });
+      };
+
+      if (options.manifest !== undefined) {
+        setupOptions.manifestPath = options.manifest;
+      }
+
+      if (options.outDir !== undefined) {
+        setupOptions.outDir = options.outDir;
+      }
+
+      await setupWorkspace(setupOptions);
     });
 
   cli.help();
