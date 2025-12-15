@@ -13,7 +13,7 @@ export async function generateDrizzleSchema(manifest: EdgeManifest): Promise<str
 }
 
 function generateImports(): string {
-  return `import { sqliteTable, text, integer, real, blob } from 'drizzle-orm/sqlite-core';
+  return `import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';`;
 }
 
@@ -79,7 +79,7 @@ function generateField(field: ManifestField): string {
       break;
 
     case 'json':
-      column = `blob('${columnName}', { mode: 'json' })`;
+      column = `text('${columnName}', { mode: 'json' })`;
       if (field.required) column += '.notNull()';
       break;
 
@@ -130,6 +130,9 @@ function generateZodField(field: ManifestField): string {
 
   switch (field.kind) {
     case 'id':
+      zodType = 'z.string()';
+      break;
+
     case 'uuid':
       zodType = 'z.string().uuid()';
       break;

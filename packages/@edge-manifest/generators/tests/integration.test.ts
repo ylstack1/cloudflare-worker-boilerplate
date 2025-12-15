@@ -130,7 +130,8 @@ describe('Generator Integration', () => {
 
       expect(output.schema).toContain('userTable');
       expect(output.types).toContain('interface User');
-      expect(output.routes).toContain('userRouter');
+      expect(output.routes).toContain('createRoutesPlugin');
+      expect(output.routes).toContain(".group('/users'");
       expect(output.migrations).toContain('users');
     });
 

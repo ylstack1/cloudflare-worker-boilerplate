@@ -91,7 +91,6 @@ describe('Schema Generator', () => {
     it('should handle field types correctly', async () => {
       const schemas = await generateZodSchemas(simpleManifest);
 
-      expect(schemas).toContain('z.string().uuid()');
       expect(schemas).toContain('z.string()');
       expect(schemas).toContain('z.number()');
       expect(schemas).toContain('z.boolean()');

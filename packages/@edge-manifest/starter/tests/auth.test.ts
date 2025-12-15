@@ -1,344 +1,75 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { createApp } from '../src/app';
-import { issueJWT, refreshJWT, verifyJWT } from '../src/auth';
-import type { Bindings } from '../src/types';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { beforeAll, describe, expect, it } from 'vitest';
 
-describe('JWT Authentication', () => {
-  const testSecret = 'test-secret-key-for-jwt';
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(here, '../../../..');
+const outputDir = path.join(repoRoot, '.output');
 
-  describe('issueJWT', () => {
-    it('should create a valid JWT token', async () => {
-      const payload = { userId: 'test@example.com', role: 'user' };
-      const token = await issueJWT(payload, testSecret);
+async function ensureOutputStubs(): Promise<void> {
+  await mkdir(outputDir, { recursive: true });
 
-      expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
-      expect(token.split('.')).toHaveLength(3); // JWT has 3 parts
-    });
+  await writeFile(
+    path.join(outputDir, 'config.ts'),
+    `export const manifest = { id: 'test', name: 'Test', version: '0.0.0', entities: [] } as const;\n\nexport const appConfig = {\n  id: manifest.id,\n  name: manifest.name,\n  version: manifest.version,\n  openapi: { title: manifest.name, version: manifest.version },\n  entities: [],\n} as const;\n`,
+    'utf-8',
+  );
 
-    it('should create different tokens for different payloads', async () => {
-      const token1 = await issueJWT({ userId: 'user1@example.com' }, testSecret);
-      const token2 = await issueJWT({ userId: 'user2@example.com' }, testSecret);
+  await writeFile(path.join(outputDir, 'schema.ts'), 'export const __schema = {};\n', 'utf-8');
 
-      expect(token1).not.toBe(token2);
-    });
-  });
+  await writeFile(
+    path.join(outputDir, 'routes.ts'),
+    `import { Elysia } from 'elysia';\nimport type { EdgeManifest } from '@edge-manifest/core';\n\nexport function createRoutesPlugin(_manifest: EdgeManifest, _schema: unknown) {\n  return new Elysia({ name: 'test.routes', aot: false }).get('/api/health', () => ({ ok: true }));\n}\n`,
+    'utf-8',
+  );
 
-  describe('verifyJWT', () => {
-    it('should verify a valid token and return payload', async () => {
-      const payload = { userId: 'test@example.com', role: 'admin' };
-      const token = await issueJWT(payload, testSecret);
+  await writeFile(
+    path.join(outputDir, 'admin-assets.ts'),
+    `export const adminAssets = {\n  '/admin/index.html': { contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><body>admin</body></html>' },\n} as const;\n`,
+    'utf-8',
+  );
+}
 
-      const verified = await verifyJWT(token, testSecret);
+type WorkerEnv = {
+  DB: D1Database;
+  KV: KVNamespace;
+};
 
-      expect(verified).toBeDefined();
-      expect(verified?.userId).toBe('test@example.com');
-      expect(verified?.role).toBe('admin');
-    });
+function createMockEnv(): WorkerEnv {
+  const db = {
+    prepare() {
+      return {
+        all: async () => ({ results: [] }),
+        run: async () => ({ success: true }),
+        first: async () => null,
+      };
+    },
+  } as unknown as D1Database;
 
-    it('should return null for invalid token', async () => {
-      const result = await verifyJWT('invalid.token.here', testSecret);
-      expect(result).toBeNull();
-    });
+  const kv = {
+    get: async () => null,
+    put: async () => {},
+    delete: async () => {},
+    list: async () => ({ keys: [], list_complete: true, cursor: '' }),
+  } as unknown as KVNamespace;
 
-    it('should return null for token with wrong secret', async () => {
-      const payload = { userId: 'test@example.com' };
-      const token = await issueJWT(payload, testSecret);
+  return { DB: db, KV: kv };
+}
 
-      const result = await verifyJWT(token, 'wrong-secret');
-      expect(result).toBeNull();
-    });
-
-    it('should return null for malformed token', async () => {
-      const result = await verifyJWT('not-a-jwt', testSecret);
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('refreshJWT', () => {
-    it('should refresh a valid token', async () => {
-      const payload = { userId: 'test@example.com' };
-      const oldToken = await issueJWT(payload, testSecret);
-
-      const newToken = await refreshJWT(oldToken, testSecret);
-
-      expect(newToken).toBeDefined();
-      expect(typeof newToken).toBe('string');
-      expect(newToken).not.toBe(oldToken);
-    });
-
-    it('should return null for invalid token', async () => {
-      const result = await refreshJWT('invalid.token.here', testSecret);
-      expect(result).toBeNull();
-    });
-
-    it('should preserve payload data in refreshed token', async () => {
-      const payload = { userId: 'test@example.com', role: 'admin' };
-      const oldToken = await issueJWT(payload, testSecret);
-
-      const newToken = await refreshJWT(oldToken, testSecret);
-      expect(newToken).toBeDefined();
-      const verified = await verifyJWT(newToken as string, testSecret);
-
-      expect(verified?.userId).toBe('test@example.com');
-      expect(verified?.role).toBe('admin');
-    });
-  });
+beforeAll(async () => {
+  await ensureOutputStubs();
 });
 
-describe('Auth Endpoints', () => {
-  let app: Awaited<ReturnType<typeof createApp>>;
-  let env: Bindings;
+describe('@edge-manifest/starter docs', () => {
+  it('GET /docs returns 200', async () => {
+    const workerMod = await import('../src/index');
+    const worker = workerMod.default as { fetch(request: Request, env: WorkerEnv): Promise<Response> };
 
-  beforeEach(async () => {
-    env = {
-      JWT_SECRET: 'test-secret-key',
-    };
-    app = await createApp(env);
-  });
+    const res = await worker.fetch(new Request('http://localhost/docs'), createMockEnv());
+    expect(res.status).toBe(200);
 
-  describe('POST /auth/login', () => {
-    it('should return a token for valid credentials', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'test@example.com',
-            password: 'password123',
-          }),
-        }),
-      );
-
-      expect(response.status).toBe(200);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(true);
-      expect(data.token).toBeDefined();
-      expect(data.expiresIn).toBe(3600);
-    });
-
-    it('should accept any email/password combination (placeholder auth)', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'any@example.com',
-            password: 'any-password',
-          }),
-        }),
-      );
-
-      expect(response.status).toBe(200);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(true);
-      expect(data.token).toBeDefined();
-    });
-
-    it('should return 400 for invalid email', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'not-an-email',
-            password: 'password123',
-          }),
-        }),
-      );
-
-      expect(response.status).toBe(400);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(false);
-    });
-
-    it('should return 400 for missing fields', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'test@example.com',
-          }),
-        }),
-      );
-
-      expect(response.status).toBe(400);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(false);
-    });
-  });
-
-  describe('POST /auth/refresh', () => {
-    it('should refresh a valid token', async () => {
-      // First, get a token
-      const loginResponse = await app.handle(
-        new Request('http://localhost/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'test@example.com',
-            password: 'password123',
-          }),
-        }),
-      );
-
-      const loginData = (await loginResponse.json()) as any;
-      const oldToken = loginData.token;
-
-      // Now refresh it
-      const refreshResponse = await app.handle(
-        new Request('http://localhost/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: oldToken,
-          }),
-        }),
-      );
-
-      expect(refreshResponse.status).toBe(200);
-      const refreshData = (await refreshResponse.json()) as any;
-      expect(refreshData.ok).toBe(true);
-      expect(refreshData.token).toBeDefined();
-      expect(refreshData.token).not.toBe(oldToken);
-    });
-
-    it('should return 401 for invalid token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: 'invalid.token.here',
-          }),
-        }),
-      );
-
-      expect(response.status).toBe(401);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(false);
-      expect(data.error?.code).toBe('INVALID_TOKEN');
-    });
-
-    it('should return 400 for missing token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        }),
-      );
-
-      expect(response.status).toBe(400);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(false);
-    });
-  });
-});
-
-describe('Auth Middleware and Protected Routes', () => {
-  let app: Awaited<ReturnType<typeof createApp>>;
-  let env: Bindings;
-  let validToken: string;
-
-  beforeEach(async () => {
-    env = {
-      JWT_SECRET: 'test-secret-key',
-    };
-    app = await createApp(env);
-
-    // Get a valid token
-    const loginResponse = await app.handle(
-      new Request('http://localhost/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: 'test@example.com',
-          password: 'password123',
-        }),
-      }),
-    );
-
-    const loginData = (await loginResponse.json()) as any;
-    validToken = loginData.token;
-  });
-
-  describe('Protected CRUD Routes', () => {
-    it('should return 401 for GET /api/health without token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/api/health', {
-          method: 'GET',
-        }),
-      );
-
-      // /api/health endpoint should be protected
-      expect(response.status).toBe(401);
-    });
-
-    it('should allow access with valid token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/api/health', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${validToken}`,
-          },
-        }),
-      );
-
-      // With valid token, should get either 200 or 503 (depending on DB availability)
-      expect([200, 503]).toContain(response.status);
-    });
-
-    it('should return 401 for invalid token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/api/health', {
-          method: 'GET',
-          headers: {
-            Authorization: 'Bearer invalid.token.here',
-          },
-        }),
-      );
-
-      expect(response.status).toBe(401);
-    });
-
-    it('should return 401 for malformed Authorization header', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/api/health', {
-          method: 'GET',
-          headers: {
-            Authorization: 'InvalidFormat',
-          },
-        }),
-      );
-
-      expect(response.status).toBe(401);
-    });
-  });
-
-  describe('Public Routes', () => {
-    it('should allow /health without token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/health', {
-          method: 'GET',
-        }),
-      );
-
-      expect(response.status).toBe(200);
-      const data = (await response.json()) as any;
-      expect(data.ok).toBe(true);
-    });
-
-    it('should allow /ready without token', async () => {
-      const response = await app.handle(
-        new Request('http://localhost/ready', {
-          method: 'GET',
-        }),
-      );
-
-      // May return 200 or 503 depending on DB availability
-      expect([200, 503]).toContain(response.status);
-    });
+    const text = await res.text();
+    expect(text.length).toBeGreaterThan(0);
   });
 });

@@ -54,7 +54,7 @@ describe('Migration Generator', () => {
     it('should generate indexes', async () => {
       const migration = await generateMigrations(simpleManifest);
 
-      expect(migration).toContain('CREATE INDEX');
+      expect(migration).toContain('CREATE UNIQUE INDEX');
       expect(migration).toContain('idx_users_email');
     });
 

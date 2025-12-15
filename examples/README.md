@@ -44,30 +44,24 @@ An e-commerce platform with stores, products, customers, and orders:
 
 ### Quick Start
 
-1. **Copy manifest to starter package:**
+1. **Copy an example manifest into the repo root:**
    ```bash
-   cp examples/config-example-1-todo.manifest.json packages/@edge-manifest/starter/manifest.json
+   cp examples/config-example-1-todo.manifest.json manifest.json
    ```
 
-2. **Start dev server:**
+2. **Generate artifacts and start the dev server:**
    ```bash
-   cd packages/@edge-manifest/starter
-   EDGE_MANIFEST="$(cat manifest.json)" bun run dev
+   pnpm generate
+   pnpm dev
    ```
 
 3. **Test the API:**
    ```bash
    # Health check
-   curl http://localhost:7860/health
-   
-   # Login
-   curl -X POST http://localhost:7860/auth/login \
-     -H "Content-Type: application/json" \
-     -d '{"email":"test@example.com","password":"test123"}'
-   
-   # Create entity (use token from login)
-   curl -X POST http://localhost:7860/api/TodoList \
-     -H "Authorization: Bearer YOUR_TOKEN" \
+   curl http://127.0.0.1:8787/api/health
+
+   # Create an entity (routes are lowercased + pluralized)
+   curl -X POST http://127.0.0.1:8787/api/todolists \
      -H "Content-Type: application/json" \
      -d '{"title":"My First List","description":"Getting started"}'
    ```
@@ -78,12 +72,12 @@ Simply copy a different example to test:
 
 ```bash
 # Test Blog example
-cp examples/config-example-2-blog.manifest.json packages/@edge-manifest/starter/manifest.json
-cd packages/@edge-manifest/starter && bun run dev
+cp examples/config-example-2-blog.manifest.json manifest.json
+pnpm generate && pnpm dev
 
 # Test E-commerce example
-cp examples/config-example-3-ecommerce.manifest.json packages/@edge-manifest/starter/manifest.json
-cd packages/@edge-manifest/starter && bun run dev
+cp examples/config-example-3-ecommerce.manifest.json manifest.json
+pnpm generate && pnpm dev
 ```
 
 ## Validation

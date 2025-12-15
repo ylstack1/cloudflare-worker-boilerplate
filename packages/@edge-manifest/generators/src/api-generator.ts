@@ -1,163 +1,170 @@
 import type { EdgeManifest, ManifestEntity, ManifestField } from '@edge-manifest/core';
 
+function pluralizeEntityPath(entityName: string): string {
+  return `${entityName.toLowerCase()}s`;
+}
+
+function getEntityIdField(entity: ManifestEntity): string {
+  const idField = entity.fields.find((f) => f.kind === 'id' || f.kind === 'uuid');
+  return idField?.name ?? 'id';
+}
+
+function getEntityTableSymbol(entity: ManifestEntity): string {
+  return `${entity.name.toLowerCase()}Table`;
+}
+
 /**
- * Generates Elysia API routes from manifest
+ * Generates an Elysia plugin factory that registers all CRUD routes for a manifest.
+ *
+ * The generated source is designed to compile in a Cloudflare Worker without edits.
  */
 export async function generateApiRoutes(manifest: EdgeManifest): Promise<string> {
   const imports = generateImports();
-  const routers = manifest.entities.map((entity) => generateEntityRouter(entity)).join('\n\n');
-  const mainRouter = generateMainRouter(manifest.entities);
+  const groups = manifest.entities.map((entity) => generateEntityGroup(entity)).join('\n\n');
 
-  return `${imports}\n\n${routers}\n\n${mainRouter}`;
+  return `${imports}\n\nexport function createRoutesPlugin(manifest: EdgeManifest, schema: Schema) {
+  const app = new Elysia({ name: 'edge-manifest.routes', aot: false });
+
+  return app.group('/api', (api) => {
+    let out = api.get('/health', () => ({ ok: true }));
+
+${groups}
+
+    return out;
+  });
+}
+`;
 }
 
 function generateImports(): string {
   return `import { Elysia, t } from 'elysia';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
-import * as schema from './schema';`;
+import type { EdgeManifest } from '@edge-manifest/core';
+
+type Schema = typeof import('./schema');
+
+type Ctx = {
+  db: DrizzleD1Database<any>;
+  request: Request;
+  params: Record<string, string>;
+  body: unknown;
+  set: { status?: number; headers: Record<string, string> };
+};`;
 }
 
-function generateEntityRouter(entity: ManifestEntity): string {
-  const entityLower = entity.name.toLowerCase();
+function generateEntityGroup(entity: ManifestEntity): string {
+  const plural = pluralizeEntityPath(entity.name);
+  const tableSymbol = getEntityTableSymbol(entity);
+  const idField = getEntityIdField(entity);
 
-  const listRoute = generateListRoute(entity);
-  const createRoute = generateCreateRoute(entity);
-  const getRoute = generateGetRoute(entity);
-  const updateRoute = generateUpdateRoute(entity);
-  const deleteRoute = generateDeleteRoute(entity);
+  const createBodySchema = generateBodySchema(entity, false);
+  const patchBodySchema = generateBodySchema(entity, true);
+  const idParamSchema = 't.Object({ id: t.String() })';
 
-  return `export const ${entityLower}Router = new Elysia({ prefix: '/${entityLower}s' })
-  ${listRoute}
-  ${createRoute}
-  ${getRoute}
-  ${updateRoute}
-  ${deleteRoute};`;
+  return `    out = out.group('/${plural}', (entityApp) => {
+      const table = (schema as any).${tableSymbol} as any;
+      const idColumn = (table as any)[${JSON.stringify(idField)}] as any;
+
+      return entityApp
+        .get('/', async ({ db, request }: Ctx) => {
+          const url = new URL(request.url);
+          const page = Number(url.searchParams.get('page') ?? 1) || 1;
+          const limit = Number(url.searchParams.get('limit') ?? 25) || 25;
+          const offset = (page - 1) * limit;
+
+          const items = await db.select().from(table).limit(limit).offset(offset).all();
+          const [{ count }] = await db.select({ count: sql<number>\`count(*)\` }).from(table).all();
+
+          return {
+            data: items,
+            meta: {
+              total: Number(count ?? 0),
+              page,
+              limit,
+            },
+          };
+        })
+        .post(
+          '/',
+          async ({ db, body, set }: Ctx) => {
+            const id = crypto.randomUUID();
+
+            const values = {
+              ...((body as any) ?? {}),
+              [${JSON.stringify(idField)}]: id,
+            };
+
+            const [item] = await db.insert(table).values(values).returning().all();
+
+            set.status = 201;
+            return { data: item };
+          },
+          {
+            body: ${createBodySchema},
+          },
+        )
+        .get(
+          '/:id',
+          async ({ db, params, set }: Ctx) => {
+            const [item] = await db.select().from(table).where(eq(idColumn, params.id)).all();
+
+            if (!item) {
+              set.status = 404;
+              return { error: 'Not found' };
+            }
+
+            return { data: item };
+          },
+          {
+            params: ${idParamSchema},
+          },
+        )
+        .patch(
+          '/:id',
+          async ({ db, params, body, set }: Ctx) => {
+            const [item] = await db
+              .update(table)
+              .set({ ...((body as any) ?? {}), updatedAt: new Date().toISOString() })
+              .where(eq(idColumn, params.id))
+              .returning()
+              .all();
+
+            if (!item) {
+              set.status = 404;
+              return { error: 'Not found' };
+            }
+
+            return { data: item };
+          },
+          {
+            params: ${idParamSchema},
+            body: ${patchBodySchema},
+          },
+        )
+        .delete(
+          '/:id',
+          async ({ db, params, set }: Ctx) => {
+            await db.delete(table).where(eq(idColumn, params.id)).run();
+            set.status = 204;
+            return null;
+          },
+          {
+            params: ${idParamSchema},
+          },
+        );
+    });`;
 }
 
-function generateListRoute(entity: ManifestEntity): string {
-  const entityLower = entity.name.toLowerCase();
-  const tableName = `${entityLower}Table`;
-
-  return `.get('/', async ({ query, store }: any) => {
-    const db = store.db as DrizzleD1Database;
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 10;
-    const offset = (page - 1) * limit;
-
-    const items = await db.select().from(schema.${tableName}).limit(limit).offset(offset).all();
-    const [{ count }] = await db.select({ count: sql\`count(*)\` }).from(schema.${tableName}).all();
-
-    return {
-      data: items,
-      meta: {
-        total: count,
-        page,
-        limit,
-      },
-    };
-  })`;
-}
-
-function generateCreateRoute(entity: ManifestEntity): string {
-  const entityLower = entity.name.toLowerCase();
-  const tableName = `${entityLower}Table`;
-  const bodySchema = generateBodySchema(entity);
-
-  return `.post('/', async ({ body, store }: any) => {
-    const db = store.db as DrizzleD1Database;
-    const id = crypto.randomUUID();
-    
-    const [item] = await db.insert(schema.${tableName})
-      .values({ id, ...body })
-      .returning()
-      .all();
-
-    return { data: item };
-  }, {
-    body: ${bodySchema}
-  })`;
-}
-
-function generateGetRoute(entity: ManifestEntity): string {
-  const entityLower = entity.name.toLowerCase();
-  const tableName = `${entityLower}Table`;
-
-  return `.get('/:id', async ({ params, store }: any) => {
-    const db = store.db as DrizzleD1Database;
-    
-    const [item] = await db.select()
-      .from(schema.${tableName})
-      .where(eq(schema.${tableName}.id, params.id))
-      .all();
-
-    if (!item) {
-      throw new Error('Not found');
-    }
-
-    return { data: item };
-  })`;
-}
-
-function generateUpdateRoute(entity: ManifestEntity): string {
-  const entityLower = entity.name.toLowerCase();
-  const tableName = `${entityLower}Table`;
-  const bodySchema = generatePartialBodySchema(entity);
-
-  return `.patch('/:id', async ({ params, body, store }: any) => {
-    const db = store.db as DrizzleD1Database;
-    
-    const [item] = await db.update(schema.${tableName})
-      .set({ ...body, updatedAt: new Date().toISOString() })
-      .where(eq(schema.${tableName}.id, params.id))
-      .returning()
-      .all();
-
-    if (!item) {
-      throw new Error('Not found');
-    }
-
-    return { data: item };
-  }, {
-    body: ${bodySchema}
-  })`;
-}
-
-function generateDeleteRoute(entity: ManifestEntity): string {
-  const entityLower = entity.name.toLowerCase();
-  const tableName = `${entityLower}Table`;
-
-  return `.delete('/:id', async ({ params, store }: any) => {
-    const db = store.db as DrizzleD1Database;
-    
-    await db.delete(schema.${tableName})
-      .where(eq(schema.${tableName}.id, params.id))
-      .run();
-
-    return { data: { deleted: true } };
-  })`;
-}
-
-function generateBodySchema(entity: ManifestEntity): string {
+function generateBodySchema(entity: ManifestEntity, partial: boolean): string {
   const fields = entity.fields
-    .filter((field) => field.kind !== 'relation' && field.kind !== 'id')
-    .map((field) => generateTypeBoxField(field))
+    .filter((field) => field.kind !== 'relation' && field.kind !== 'id' && field.kind !== 'uuid')
+    .map((field) => generateTypeBoxField({ ...field, required: partial ? false : field.required }))
     .join(',\n      ');
 
-  return `t.Object({
-      ${fields}
-    })`;
-}
+  const base = `t.Object({\n      ${fields}\n    })`;
 
-function generatePartialBodySchema(entity: ManifestEntity): string {
-  const fields = entity.fields
-    .filter((field) => field.kind !== 'relation' && field.kind !== 'id')
-    .map((field) => generateTypeBoxField({ ...field, required: false }))
-    .join(',\n      ');
-
-  return `t.Partial(t.Object({
-      ${fields}
-    }))`;
+  return partial ? `t.Partial(${base})` : base;
 }
 
 function generateTypeBoxField(field: ManifestField): string {
@@ -169,7 +176,13 @@ function generateTypeBoxField(field: ManifestField): string {
 
   switch (field.kind) {
     case 'id':
+      typeBoxType = 't.String()';
+      break;
+
     case 'uuid':
+      typeBoxType = "t.String({ format: 'uuid' })";
+      break;
+
     case 'string':
       typeBoxType = 't.String()';
       break;
@@ -201,15 +214,6 @@ function generateTypeBoxField(field: ManifestField): string {
   return `${field.name}: ${typeBoxType}`;
 }
 
-function generateMainRouter(entities: ManifestEntity[]): string {
-  const routers = entities.map((entity) => `${entity.name.toLowerCase()}Router`).join(', ');
-
-  return `export function createApiRouter() {
-  return new Elysia({ prefix: '/api' })
-    .use(${routers.split(', ').join(')\n    .use(')});
-}`;
-}
-
 /**
  * Generates TypeBox schemas for validation
  */
@@ -227,7 +231,5 @@ function generateTypeBoxEntitySchema(entity: ManifestEntity): string {
     .map((field) => generateTypeBoxField(field))
     .join(',\n  ');
 
-  return `export const ${entityName}Schema = t.Object({
-  ${fields}
-});`;
+  return `export const ${entityName}Schema = t.Object({\n  ${fields}\n});`;
 }

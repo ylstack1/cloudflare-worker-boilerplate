@@ -101,11 +101,6 @@ function createDefaultFileLoader() {
             'Please provide a custom FileLoader for Workers environment.',
         );
       }
-      if (typeof globalThis.Bun !== 'undefined') {
-        // Bun environment
-        const { readFile } = await import('node:fs/promises');
-        return readFile(path, 'utf-8');
-      }
       if (typeof process !== 'undefined' && process.versions?.node) {
         // Node.js environment
         const { readFile } = await import('node:fs/promises');
