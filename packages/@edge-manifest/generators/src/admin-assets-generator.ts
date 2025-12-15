@@ -42,7 +42,7 @@ function buildIndexHtml(manifest: EdgeManifest): string {
       <div id="app"></div>
     </main>
 
-    <script type="module" src="/admin/admin.js"></script>
+    <script type="module" src="/admin/admin"></script>
   </body>
 </html>`;
 }
@@ -203,7 +203,7 @@ route();
 export async function generateAdminAssets(manifest: EdgeManifest): Promise<AdminAssets> {
   return {
     'admin/index.html': buildIndexHtml(manifest),
-    'admin/admin.js': buildAdminJs(manifest),
+    'admin/admin': buildAdminJs(manifest),
     'admin/styles.css': buildStyles(),
   };
 }
@@ -217,7 +217,7 @@ export async function generateAdminAssetsModule(manifest: EdgeManifest): Promise
         ? 'text/html; charset=utf-8'
         : path.endsWith('.css')
           ? 'text/css; charset=utf-8'
-          : path.endsWith('.js')
+          : path.endsWith('')
             ? 'text/javascript; charset=utf-8'
             : 'application/octet-stream';
 

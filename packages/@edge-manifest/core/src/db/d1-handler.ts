@@ -8,7 +8,7 @@
  * ```typescript
  * import { createD1RequestHandler } from '@edge-manifest/core';
  * import { drizzle } from 'drizzle-orm/d1';
- * import * as schema from './schema.js';
+ * import * as schema from './schema';
  *
  * const d1Handler = createD1RequestHandler({ schema });
  *
@@ -35,7 +35,7 @@ export interface D1HandlerOptions<TSchema extends Record<string, unknown>> {
    * Drizzle schema object containing table definitions
    * @example
    * ```typescript
-   * import * as schema from './schema.js';
+   * import * as schema from './schema';
    * const handler = createD1RequestHandler({ schema });
    * ```
    */
@@ -125,7 +125,7 @@ export class D1BindingError extends Error {
  * @example
  * ```typescript
  * import { createD1RequestHandler } from '@edge-manifest/core';
- * import * as schema from './schema.js';
+ * import * as schema from './schema';
  *
  * // Create the handler once
  * const d1Handler = createD1RequestHandler({

@@ -5,8 +5,8 @@
     "lib": ["ESNext"],
 
     /* Modules */
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "rootDir": "./",
     "baseUrl": "./",
     "paths": {

@@ -1,5 +1,5 @@
 import { cac } from 'cac';
-import { type SetupOptions, setupWorkspace } from './setup.js.js';
+import { type SetupOptions, setupWorkspace } from './setup.js';
 
 export async function runCli(argv: string[]): Promise<void> {
   const cli = cac('edge-manifest');
