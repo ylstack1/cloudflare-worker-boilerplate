@@ -1,5 +1,5 @@
-import type { EdgeManifest } from '../manifest/types';
-import { validateManifest } from '../manifest/validator';
+import type { EdgeManifest } from '../manifest/types.js';
+import { validateManifest } from '../manifest/validator.js';
 
 export interface RuntimeOverrides {
   defaultRegion?: string;
