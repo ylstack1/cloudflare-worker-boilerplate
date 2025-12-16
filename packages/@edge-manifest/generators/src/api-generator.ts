@@ -14,7 +14,7 @@ function getEntityTableSymbol(entity: ManifestEntity): string {
 }
 
 /**
- * Generates an Elysia plugin factory that registers all CRUD routes for a manifest.
+ * Generates a Hono app factory that registers all CRUD routes for a manifest.
  *
  * The generated source is designed to compile in a Cloudflare Worker without edits.
  */
@@ -22,214 +22,236 @@ export async function generateApiRoutes(manifest: EdgeManifest): Promise<string>
   const imports = generateImports();
   const groups = manifest.entities.map((entity) => generateEntityGroup(entity)).join('\n\n');
 
-  return `${imports}\n\nexport function createRoutesPlugin(manifest: EdgeManifest, schema: Schema) {
-  const app = new Elysia({ name: 'edge-manifest.routes', aot: false });
+  return `${imports}
 
-  return app.group('/api', (api) => {
-    let out = api.get('/health', () => ({ ok: true }));
+export function createRoutesPlugin(manifest: EdgeManifest, schema: Schema) {
+  const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+  // Health check
+  app.get('/api/health', (c) => c.json({ ok: true }));
 
 ${groups}
 
-    return out;
-  });
+  return app;
 }
 `;
 }
 
 function generateImports(): string {
-  return `import { Elysia, t } from 'elysia';
+  return `import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { eq, sql } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type { EdgeManifest } from '@edge-manifest/core';
 
 type Schema = typeof import('./schema');
 
-type Ctx = {
+type Bindings = {
+  DB: D1Database;
+  KV: KVNamespace;
+  JWT_SECRET?: string;
+  KV_SESSION_TTL?: string;
+};
+
+type Variables = {
+  requestId: string;
   db: DrizzleD1Database<any>;
-  request: Request;
-  params: Record<string, string>;
-  body: unknown;
-  set: { status?: number; headers: Record<string, string> };
 };`;
 }
 
 function generateEntityGroup(entity: ManifestEntity): string {
-  const plural = pluralizeEntityPath(entity.name);
+  const pathBase = pluralizeEntityPath(entity.name);
   const tableSymbol = getEntityTableSymbol(entity);
   const idField = getEntityIdField(entity);
 
-  const createBodySchema = generateBodySchema(entity, false);
-  const patchBodySchema = generateBodySchema(entity, true);
-  const idParamSchema = 't.Object({ id: t.String() })';
+  const createSchema = generateZodSchema(entity, false);
+  const updateSchema = generateZodSchema(entity, true);
 
-  return `    out = out.group('/${plural}', (entityApp) => {
-      const table = (schema as any).${tableSymbol} as any;
-      const idColumn = (table as any)[${JSON.stringify(idField)}] as any;
+  return `  // ${entity.name} CRUD routes
+  const ${tableSymbol} = schema.${entity.table};
 
-      return entityApp
-        .get('/', async ({ db, request }: Ctx) => {
-          const url = new URL(request.url);
-          const page = Number(url.searchParams.get('page') ?? 1) || 1;
-          const limit = Number(url.searchParams.get('limit') ?? 25) || 25;
-          const offset = (page - 1) * limit;
+  // List ${entity.name}s
+  app.get('/api/${pathBase}', async (c) => {
+    const db = c.get('db');
+    const url = new URL(c.req.url);
+    const limit = Math.min(Number.parseInt(url.searchParams.get('limit') || '50'), 100);
+    const offset = Number.parseInt(url.searchParams.get('offset') || '0');
 
-          const items = await db.select().from(table).limit(limit).offset(offset).all();
-          const [{ count }] = await db.select({ count: sql<number>\`count(*)\` }).from(table).all();
+    const items = await db
+      .select()
+      .from(${tableSymbol})
+      .limit(limit)
+      .offset(offset);
 
-          return {
-            data: items,
-            meta: {
-              total: Number(count ?? 0),
-              page,
-              limit,
-            },
-          };
-        })
-        .post(
-          '/',
-          async ({ db, body, set }: Ctx) => {
-            const id = crypto.randomUUID();
+    const total = await db
+      .select({ count: sql<number>\`count(*)\` })
+      .from(${tableSymbol})
+      .then((r) => r[0]?.count ?? 0);
 
-            const values = {
-              ...((body as any) ?? {}),
-              [${JSON.stringify(idField)}]: id,
-            };
+    return c.json({
+      data: items,
+      meta: { total, limit, offset },
+    });
+  });
 
-            const [item] = await db.insert(table).values(values).returning().all();
+  // Get ${entity.name} by ID
+  app.get('/api/${pathBase}/:id', async (c) => {
+    const db = c.get('db');
+    const id = c.req.param('id');
 
-            set.status = 201;
-            return { data: item };
-          },
-          {
-            body: ${createBodySchema},
-          },
-        )
-        .get(
-          '/:id',
-          async ({ db, params, set }: Ctx) => {
-            const [item] = await db.select().from(table).where(eq(idColumn, params.id)).all();
+    const item = await db
+      .select()
+      .from(${tableSymbol})
+      .where(eq(${tableSymbol}.${idField}, id))
+      .limit(1)
+      .then((r) => r[0]);
 
-            if (!item) {
-              set.status = 404;
-              return { error: 'Not found' };
-            }
+    if (!item) {
+      return c.json({ error: '${entity.name} not found' }, 404);
+    }
 
-            return { data: item };
-          },
-          {
-            params: ${idParamSchema},
-          },
-        )
-        .patch(
-          '/:id',
-          async ({ db, params, body, set }: Ctx) => {
-            const [item] = await db
-              .update(table)
-              .set({ ...((body as any) ?? {}), updatedAt: new Date().toISOString() })
-              .where(eq(idColumn, params.id))
-              .returning()
-              .all();
+    return c.json({ data: item });
+  });
 
-            if (!item) {
-              set.status = 404;
-              return { error: 'Not found' };
-            }
+  // Create ${entity.name}
+  app.post(
+    '/api/${pathBase}',
+    zValidator('json', ${createSchema}),
+    async (c) => {
+      const db = c.get('db');
+      const body = c.req.valid('json');
 
-            return { data: item };
-          },
-          {
-            params: ${idParamSchema},
-            body: ${patchBodySchema},
-          },
-        )
-        .delete(
-          '/:id',
-          async ({ db, params, set }: Ctx) => {
-            await db.delete(table).where(eq(idColumn, params.id)).run();
-            set.status = 204;
-            return null;
-          },
-          {
-            params: ${idParamSchema},
-          },
-        );
-    });`;
+      const newItem = {
+        ${idField}: crypto.randomUUID(),
+        ...body,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await db.insert(${tableSymbol}).values(newItem);
+
+      return c.json({ data: newItem }, 201);
+    }
+  );
+
+  // Update ${entity.name}
+  app.patch(
+    '/api/${pathBase}/:id',
+    zValidator('json', ${updateSchema}),
+    async (c) => {
+      const db = c.get('db');
+      const id = c.req.param('id');
+      const body = c.req.valid('json');
+
+      const existing = await db
+        .select()
+        .from(${tableSymbol})
+        .where(eq(${tableSymbol}.${idField}, id))
+        .limit(1)
+        .then((r) => r[0]);
+
+      if (!existing) {
+        return c.json({ error: '${entity.name} not found' }, 404);
+      }
+
+      const updated = {
+        ...body,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await db
+        .update(${tableSymbol})
+        .set(updated)
+        .where(eq(${tableSymbol}.${idField}, id));
+
+      return c.json({ data: { ...existing, ...updated } });
+    }
+  );
+
+  // Delete ${entity.name}
+  app.delete('/api/${pathBase}/:id', async (c) => {
+    const db = c.get('db');
+    const id = c.req.param('id');
+
+    const existing = await db
+      .select()
+      .from(${tableSymbol})
+      .where(eq(${tableSymbol}.${idField}, id))
+      .limit(1)
+      .then((r) => r[0]);
+
+    if (!existing) {
+      return c.json({ error: '${entity.name} not found' }, 404);
+    }
+
+    await db
+      .delete(${tableSymbol})
+      .where(eq(${tableSymbol}.${idField}, id));
+
+    return c.body(null, 204);
+  });`;
 }
 
-function generateBodySchema(entity: ManifestEntity, partial: boolean): string {
+function generateZodSchema(entity: ManifestEntity, partial: boolean): string {
   const fields = entity.fields
     .filter((field) => field.kind !== 'relation' && field.kind !== 'id' && field.kind !== 'uuid')
-    .map((field) => generateTypeBoxField({ ...field, required: partial ? false : (field.required ?? false) }))
-    .join(',\n      ');
+    .map((field) => generateZodField(field, partial))
+    .join(',\n    ');
 
-  const base = `t.Object({\n      ${fields}\n    })`;
-
-  return partial ? `t.Partial(${base})` : base;
+  return `z.object({
+    ${fields}
+  })${partial ? '.partial()' : ''}`;
 }
 
-function generateTypeBoxField(field: ManifestField): string {
+function generateZodField(field: ManifestField, isPartial: boolean): string {
   if (field.kind === 'relation') {
     throw new Error('Relations should be filtered out');
   }
 
-  let typeBoxType = '';
+  let zodType = '';
 
   switch (field.kind) {
     case 'id':
-      typeBoxType = 't.String()';
+      zodType = 'z.string().uuid()';
       break;
 
     case 'uuid':
-      typeBoxType = "t.String({ format: 'uuid' })";
+      zodType = 'z.string().uuid()';
       break;
 
     case 'string':
-      typeBoxType = 't.String()';
+      zodType = 'z.string()';
       break;
 
     case 'number':
-      typeBoxType = 't.Number()';
+      zodType = 'z.number()';
       break;
 
     case 'boolean':
-      typeBoxType = 't.Boolean()';
+      zodType = 'z.boolean()';
       break;
 
     case 'date':
-      typeBoxType = 't.String()';
+      zodType = 'z.string().datetime()';
       break;
 
     case 'json':
-      typeBoxType = 't.Any()';
+      zodType = 'z.any()';
       break;
 
     default:
-      throw new Error(`Unsupported field kind: ${(field as any).kind}`);
+      zodType = 'z.any()';
   }
 
-  if (!field.required) {
-    typeBoxType = `t.Optional(${typeBoxType})`;
+  const required = field.required ?? false;
+  if (!required && !isPartial) {
+    zodType += '.optional()';
   }
 
-  return `${field.name}: ${typeBoxType}`;
+  return `${field.name}: ${zodType}`;
 }
 
-/**
- * Generates TypeBox schemas for validation
- */
-export async function generateTypeBoxSchemas(manifest: EdgeManifest): Promise<string> {
-  const imports = `import { t } from 'elysia';`;
-  const schemas = manifest.entities.map((entity) => generateTypeBoxEntitySchema(entity)).join('\n\n');
-
-  return `${imports}\n\n${schemas}`;
-}
-
-function generateTypeBoxEntitySchema(entity: ManifestEntity): string {
-  const entityName = entity.name;
-  const fields = entity.fields
-    .filter((field) => field.kind !== 'relation')
-    .map((field) => generateTypeBoxField(field))
-    .join(',\n  ');
-
-  return `export const ${entityName}Schema = t.Object({\n  ${fields}\n});`;
+export async function generateTypeBoxSchemas(_manifest: EdgeManifest): Promise<string> {
+  return '// TypeBox schemas not needed for Hono - using Zod instead';
 }

@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 import { runCli } from './run-cli.js';
 
-console.log('[BIN] Starting CLI with args:', process.argv.slice(2));
-
 runCli(process.argv.slice(2))
   .then(() => {
-    console.log('[BIN] CLI completed successfully');
+    process.exit(0);
   })
   .catch((error) => {
-    console.error('[BIN] Error:', error);
+    console.error('Error:', error.message);
     process.exit(1);
   });
