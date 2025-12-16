@@ -7,7 +7,6 @@ minify = false
 send_metrics = false
 
 # Wrangler should read migrations from the repo-level .output directory
-migrations_dir = "../../.output/migrations"
 
 [placement]
 mode = "smart"
@@ -21,6 +20,7 @@ local_protocol = "http"
 binding = "DB"
 database_name = "edge-manifest-db"
 database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = ".output/migrations"
 
 [[kv_namespaces]]
 binding = "KV"

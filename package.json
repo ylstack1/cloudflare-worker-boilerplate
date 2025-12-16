@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "bun@1.0.0",
   "scripts": {
-    "generate": "cd packages/@edge-manifest/cli && bun run build && cd ../../../ && node packages/@edge-manifest/cli/dist/src/bin.js setup --force",
+    "generate": "bun run build:packages && node packages/@edge-manifest/cli/dist/src/bin.js setup --out-dir packages/@edge-manifest/starter/.output --force",
     "build:core": "cd packages/@edge-manifest/core && bun run build",
     "build:generators": "cd packages/@edge-manifest/generators && bun run build",
     "build:cli": "cd packages/@edge-manifest/cli && bun run build",
@@ -29,6 +29,7 @@
     "@biomejs/biome": "2.3.8",
     "@cloudflare/workers-types": "4.20251209.0",
     "@hono/zod-openapi": "^0.16.0",
+    "@hono/zod-validator": "^0.4.1",
     "@types/node": "^20.10.0",
     "@vitest/coverage-v8": "^1.1.0",
     "drizzle-orm": "^0.36.4",
