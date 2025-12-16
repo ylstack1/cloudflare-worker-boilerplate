@@ -4,5 +4,5 @@ export function cli() {
   };
 }
 
-export { runCli } from './run-cli';
-export { setupWorkspace } from './setup';
+export { runCli } from './run-cli.js';
+export { setupWorkspace } from './setup.js';

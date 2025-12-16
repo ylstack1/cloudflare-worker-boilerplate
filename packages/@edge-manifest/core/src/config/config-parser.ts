@@ -1,5 +1,5 @@
-import type { EdgeManifest } from '../manifest/types';
-import { validateManifest } from '../manifest/validator';
+import type { EdgeManifest } from '../manifest/types.js';
+import { validateManifest } from '../manifest/validator.js';
 
 export interface RuntimeOverrides {
   defaultRegion?: string;
@@ -107,7 +107,6 @@ export class ConfigParser {
       if (!merged.generators) {
         merged.generators = {};
       }
-      // biome-ignore lint/complexity/useLiteralKeys: TypeScript strict mode requires bracket notation for index signatures
       (merged.generators as Record<string, unknown>)['defaultRegion'] = runtimeOverrides.defaultRegion;
     }
 

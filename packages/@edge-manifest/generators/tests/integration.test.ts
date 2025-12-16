@@ -49,7 +49,7 @@ describe('Generator Integration', () => {
 
       expect(output.routes).toContain('import');
       expect(output.routes).toContain('export');
-      expect(output.routes).toContain('Elysia');
+      expect(output.routes).toContain('Hono');
       expect(output.routes).not.toContain('undefined');
     });
 
@@ -131,7 +131,7 @@ describe('Generator Integration', () => {
       expect(output.schema).toContain('userTable');
       expect(output.types).toContain('interface User');
       expect(output.routes).toContain('createRoutesPlugin');
-      expect(output.routes).toContain(".group('/users'");
+      expect(output.routes).toContain("'/api/users'");
       expect(output.migrations).toContain('users');
     });
 
@@ -180,7 +180,7 @@ describe('Generator Integration', () => {
 
       // Check routes have proper imports
       expect(output.routes).toContain('import {');
-      expect(output.routes).toMatch(/from ['"]elysia['"]/);
+      expect(output.routes).toMatch(/from ['"]hono['"]/);
     });
 
     it('should not have syntax errors in generated code', async () => {

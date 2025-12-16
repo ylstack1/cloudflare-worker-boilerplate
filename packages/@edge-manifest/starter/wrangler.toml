@@ -27,6 +27,11 @@ binding = "KV"
 id = "00000000000000000000000000000000"
 preview_id = "00000000000000000000000000000000"
 
+# Static assets directory (for /admin UI)
+# Note: Admin UI is currently served inline via adminAssets, but this is ready for future use
+# [assets]
+# directory = "public"
+
 [vars]
 JWT_SECRET = "dev-secret-change-me"
 KV_SESSION_TTL = "604800"

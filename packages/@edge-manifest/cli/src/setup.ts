@@ -86,7 +86,7 @@ async function loadManifest(filePath: string): Promise<unknown> {
     try {
       const require = createRequire(import.meta.url);
       const mod = require(filePath) as Record<string, unknown>;
-      return mod.default ?? mod.manifest ?? mod;
+      return mod['default'] ?? mod['manifest'] ?? mod;
     } finally {
       unregister();
     }
@@ -149,7 +149,7 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
   await writeFileGuarded(path.join(outDir, 'admin-assets.ts'), generated.adminAssetsModule, Boolean(options.force));
 
   for (const [relativePath, body] of Object.entries(generated.adminAssets)) {
-    await writeFileGuarded(path.join(outDir, relativePath), body, Boolean(options.force));
+    await writeFileGuarded(path.join(outDir, relativePath), body as string, Boolean(options.force));
   }
 
   const ts = formatMigrationTimestampForFilename(new Date());

@@ -1,8 +1,6 @@
-import { cors } from '@elysiajs/cors';
-import openapi from '@elysiajs/openapi';
 import { drizzle } from 'drizzle-orm/d1';
-import { Elysia } from 'elysia';
-import { CloudflareAdapter } from 'elysia/adapter/cloudflare-worker';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 
 import { adminAssets } from '../../../../.output/admin-assets';
 import { appConfig, manifest } from '../../../../.output/config';
@@ -16,28 +14,16 @@ type Bindings = {
   KV_SESSION_TTL?: string;
 };
 
-type SetContext = {
-  status?: number;
-  headers: Record<string, string>;
-};
-
-type RouteContext = {
-  request: Request;
-  set: SetContext;
-};
-
-type Db = ReturnType<typeof drizzle>;
-
-type AppContext = RouteContext & {
+type Variables = {
   requestId: string;
-  db: Db;
+  db: ReturnType<typeof drizzle>;
 };
 
-function applySecurityHeaders(headers: Record<string, string>): void {
-  headers['x-content-type-options'] = 'nosniff';
-  headers['x-frame-options'] = 'DENY';
-  headers['referrer-policy'] = 'no-referrer';
-  headers['permissions-policy'] = 'interest-cohort=()';
+function applySecurityHeaders(headers: Headers): void {
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('x-frame-options', 'DENY');
+  headers.set('referrer-policy', 'no-referrer');
+  headers.set('permissions-policy', 'interest-cohort=()');
 }
 
 function resolveAdminAsset(pathname: string): { contentType: string; body: string } | undefined {
@@ -52,81 +38,110 @@ function resolveAdminAsset(pathname: string): { contentType: string; body: strin
   return undefined;
 }
 
-function createApp(env: Bindings) {
-  return new Elysia({ adapter: CloudflareAdapter, aot: false })
-    .decorate('env', env)
-    .decorate('db', undefined as unknown as Db)
-    .decorate('requestId', '')
-    .use(
-      cors({
-        origin: true,
-        methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['content-type', 'authorization', 'x-request-id'],
-        exposeHeaders: ['x-request-id'],
-      }),
-    )
-    .onRequest((ctx: AppContext) => {
-      ctx.requestId = crypto.randomUUID();
-      ctx.set.headers['x-request-id'] = ctx.requestId;
+function createApp() {
+  const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-      ctx.db = drizzle(env.DB, { schema });
-    })
-    .onAfterHandle((ctx: AppContext) => {
-      applySecurityHeaders(ctx.set.headers);
-    })
-    .use(createRoutesPlugin(manifest, schema))
-    .get('/admin', ({ request, set }: RouteContext) => {
-      const url = new URL(request.url);
-      const asset = resolveAdminAsset(url.pathname);
+  // CORS middleware
+  app.use(
+    '*',
+    cors({
+      origin: '*',
+      allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['content-type', 'authorization', 'x-request-id'],
+      exposeHeaders: ['x-request-id'],
+    }),
+  );
 
-      if (!asset) {
-        set.status = 404;
-        return 'Not found';
-      }
+  // Request ID and DB middleware
+  app.use('*', async (c, next) => {
+    const requestId = crypto.randomUUID();
+    c.set('requestId', requestId);
+    c.set('db', drizzle(c.env.DB, { schema }));
+    await next();
+  });
 
-      set.headers['content-type'] = asset.contentType;
-      return asset.body;
-    })
-    .get('/admin/*', ({ request, set }: RouteContext) => {
-      const url = new URL(request.url);
-      const asset = resolveAdminAsset(url.pathname);
+  // Security headers middleware
+  app.use('*', async (c, next) => {
+    await next();
+    applySecurityHeaders(c.res.headers);
+    c.res.headers.set('x-request-id', c.get('requestId'));
+  });
 
-      if (!asset) {
-        set.status = 404;
-        return 'Not found';
-      }
+  // Register generated routes
+  const routesApp = createRoutesPlugin(manifest, schema);
+  app.route('/', routesApp);
 
-      set.headers['content-type'] = asset.contentType;
-      return asset.body;
-    })
-    .use(
-      openapi({
-        path: '/docs',
-        provider: 'scalar',
-        specPath: '/openapi.json',
-        documentation: {
-          info: {
-            title: appConfig.openapi.title,
-            version: appConfig.openapi.version,
-          },
-        },
-        exclude: {
-          paths: [/^\/admin/],
-        },
-      }),
-    );
+  // Admin UI routes
+  app.get('/admin', (c) => {
+    const url = new URL(c.req.url);
+    const asset = resolveAdminAsset(url.pathname);
+
+    if (!asset) {
+      return c.text('Not found', 404);
+    }
+
+    return c.body(asset.body, 200, {
+      'content-type': asset.contentType,
+    });
+  });
+
+  app.get('/admin/*', (c) => {
+    const url = new URL(c.req.url);
+    const asset = resolveAdminAsset(url.pathname);
+
+    if (!asset) {
+      return c.text('Not found', 404);
+    }
+
+    return c.body(asset.body, 200, {
+      'content-type': asset.contentType,
+    });
+  });
+
+  // OpenAPI documentation
+  app.get('/docs', (c) => {
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${appConfig.openapi.title}</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <script 
+    id="api-reference" 
+    data-url="/openapi.json"
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`;
+    return c.html(html);
+  });
+
+  app.get('/openapi.json', (c) => {
+    const openapi = {
+      openapi: '3.0.0',
+      info: {
+        title: appConfig.openapi.title,
+        version: appConfig.openapi.version,
+      },
+      paths: {},
+    };
+    return c.json(openapi);
+  });
+
+  return app;
 }
 
 let cachedApp: ReturnType<typeof createApp> | undefined;
-let cachedEnv: Bindings | undefined;
 
 export default {
-  async fetch(request: Request, env: Bindings): Promise<Response> {
-    if (!cachedApp || cachedEnv !== env) {
-      cachedEnv = env;
-      cachedApp = createApp(env);
+  async fetch(request: Request, env: Bindings, ctx: ExecutionContext): Promise<Response> {
+    if (!cachedApp) {
+      cachedApp = createApp();
     }
 
-    return cachedApp.handle(request);
+    return cachedApp.fetch(request, env, ctx);
   },
 };
